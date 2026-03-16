@@ -3,8 +3,8 @@
 # Financial Data Governance Framework (FDGF)
 #
 # This YAML template translates Federal Reserve SR 11-7 guidance
-# into machine-executable governance configuration that any U.S.
-# bank can adopt to operationalize model risk management requirements.
+# into machine-readable governance configuration for illustrative
+# model risk management workflows.
 #
 # "Governance-as-code" — policy defined once, enforced automatically
 # across all model pipelines.
@@ -13,8 +13,6 @@
 #   Federal Reserve / OCC: SR 11-7 (April 2011)
 #   "Guidance on Model Risk Management"
 #
-# Author: Kunal Kumar Singh — FDGF Open Source Project
-# License: Apache 2.0
 # ============================================================
 
 policy_version: "1.0.0"
@@ -145,24 +143,6 @@ fairness_requirements:
     - monitoring_frequency: QUARTERLY
 
 # ----------------------------------------------------------
-# Explainability Requirements
-# (SR 11-7: "Understanding of model limitations")
-# ----------------------------------------------------------
-explainability:
-  required_for_tiers: [1, 2]
-  accepted_methods:
-    - SHAP
-    - LIME
-    - INTEGRATED_GRADIENTS
-    - PARTIAL_DEPENDENCE_PLOTS
-
-  documentation_requirements:
-    - global_feature_importance
-    - local_explanation_sample_size: 100
-    - counterfactual_examples: true
-    - decision_boundary_description: true
-
-# ----------------------------------------------------------
 # Change Management and Approval Workflow
 # (SR 11-7: "Governance, Policies, and Controls")
 # ----------------------------------------------------------
@@ -189,7 +169,7 @@ change_management:
   version_control:
     required: true
     system: "Git"                  # All model code version-controlled
-    immutable_artifacts: true      # Trained model artifacts stored immutably (S3 Object Lock)
+    immutable_artifacts: true      # Trained model artifacts preserved with tamper-evident controls
     audit_log_retention_years: 7   # Consistent with SOX retention requirements
 
 # ----------------------------------------------------------
@@ -212,4 +192,4 @@ audit_requirements:
     storage_mode: "WORM"          # Write Once Read Many — tamper-evident
 
   machine_readable_format: true   # FDTA compliance
-  openlineage_compatible: true    # Interoperability with regulatory systems
+  openlineage_style: true         # Interoperability-oriented lineage structure

@@ -2,12 +2,12 @@
 governance/lineage/tracker.py
 
 End-to-end data lineage tracking for U.S. regulatory reporting pipelines.
-OpenLineage-compatible. Satisfies BCBS 239 Principle 2 (Data Architecture)
-and FDTA machine-readable lineage requirements.
+OpenLineage-style. Aligned with common lineage and traceability control themes
+used in BCBS 239-style and machine-readable reporting workflows.
 
-Every dataset transformation, join, aggregation, and submission is recorded
-with an immutable, tamper-evident audit trail — replacing manual documentation
-with continuous, automated evidence generation.
+Every dataset transformation, join, aggregation, and output handoff is recorded
+with tamper-evident hashes and generated run artifacts, replacing manual
+documentation with continuous evidence generation.
 
 Author: Kunal Kumar Singh
 License: Apache 2.0
@@ -56,8 +56,7 @@ class TransformationFacet:
 @dataclass
 class LineageEvent:
     """
-    A single immutable lineage event.
-    Compatible with OpenLineage spec: https://openlineage.io
+    A single lineage event in an OpenLineage-style structure.
     """
     event_id:        str
     event_type:      str          # "START", "COMPLETE", "FAIL", "ABORT"
@@ -76,7 +75,7 @@ class LineageEvent:
     additional_facets: dict[str, Any] = field(default_factory=dict)
 
     def to_openlineage_dict(self) -> dict:
-        """Serialize to OpenLineage-compatible JSON structure."""
+        """Serialize to an OpenLineage-style JSON structure."""
         return {
             "eventType":  self.event_type,
             "eventTime":  self.event_time,
@@ -109,8 +108,8 @@ class LineageTracker:
     Records end-to-end data lineage for regulatory reporting pipelines.
 
     Captures every transformation from raw source data through to the final
-    regulatory submission, producing a complete, tamper-evident audit trail
-    that satisfies BCBS 239, FDTA, and Federal Reserve SR 11-7 expectations.
+    reporting output, producing a tamper-evident audit trail that can support
+    traceability and review workflows.
 
     Usage
     -----
