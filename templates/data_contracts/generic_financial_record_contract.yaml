@@ -1,0 +1,34 @@
+dataset: generic_financial_records
+version: 1.0
+rules:
+  - id: GEN_001
+    type: nullability
+    column: record_id
+    severity: CRITICAL
+    regulatory_ref: "Core record completeness"
+
+  - id: GEN_002
+    type: nullability
+    column: reporting_date
+    severity: CRITICAL
+    regulatory_ref: "Reporting date completeness"
+
+  - id: GEN_003
+    type: uniqueness
+    column: record_id
+    severity: HIGH
+    regulatory_ref: "Record uniqueness"
+
+  - id: GEN_004
+    type: range
+    column: amount
+    min_value: 0.0
+    severity: HIGH
+    regulatory_ref: "Amount reasonableness"
+
+  - id: GEN_005
+    type: regulatory_format
+    column: reporting_date
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    severity: HIGH
+    regulatory_ref: "Date format standard"

@@ -1,0 +1,25 @@
+use_case_id: model_governance_monitoring
+summary: >
+  Attach drift, fairness, lineage, and supporting control evidence to
+  model-driven decision workflows used in regulated financial operations.
+
+applicable_institution_types:
+  - depository_institution
+  - capital_markets_intermediary
+  - asset_manager
+  - insurer
+  - digital_finance_platform
+
+typical_datasets:
+  - model_scores
+  - approval_decisions
+  - fraud_alerts
+  - scenario_model_outputs
+
+primary_modules:
+  - model_monitoring
+  - lineage_capture
+  - validation_engine
+
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml

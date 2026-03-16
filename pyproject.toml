@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fdgf"
+version = "0.1.0"
+description = "Financial Data Governance Framework: reusable, regulator-aligned governance-as-code framework for regulated financial data workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [
+  { name = "Kunal Kumar Singh" }
+]
+keywords = [
+  "data-governance",
+  "regtech",
+  "financial-services",
+  "lineage",
+  "model-risk",
+  "bcbs239",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Office/Business :: Financial",
+]
+dependencies = [
+  "pandas>=2.0",
+  "numpy>=1.24",
+  "PyYAML>=6.0",
+  "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+full = [
+  "pyspark>=3.5",
+  "delta-spark>=3.0",
+  "scipy>=1.11",
+  "fairlearn>=0.10",
+  "openlineage-python>=1.20",
+  "apache-airflow>=2.9",
+]
+
+[project.scripts]
+fdgf = "governance.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["governance*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-q"

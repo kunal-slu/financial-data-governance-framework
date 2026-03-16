@@ -1,0 +1,23 @@
+framework: FDGF
+version: 1.0
+control_mappings:
+  - control_id: FDGF-DQ-001
+    component: governance.data_quality.validators
+    maps_to:
+      - BCBS 239 Principle 3
+      - FDTA machine-readable standards
+    description: Contract-driven data quality checks and audit bundle generation
+
+  - control_id: FDGF-LIN-001
+    component: governance.lineage.tracker
+    maps_to:
+      - BCBS 239 Principle 2
+      - FDTA lineage/interoperability themes
+    description: End-to-end lineage event capture and bundle generation
+
+  - control_id: FDGF-MRG-001
+    component: governance.model_governance.drift_detector
+    maps_to:
+      - SR 11-7 ongoing monitoring
+      - Fair lending monitoring support
+    description: Drift and fairness-oriented model monitoring

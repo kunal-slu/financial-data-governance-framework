@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: "Financial Data Governance Framework (FDGF)"
+message: "If you use this repository in technical or academic work, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Singh
+    given-names: Kunal Kumar
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-03-15
+abstract: >
+  Governance-as-code reference implementation for regulated data workflows,
+  including validation, lineage, model-monitoring, and audit-oriented artifacts.

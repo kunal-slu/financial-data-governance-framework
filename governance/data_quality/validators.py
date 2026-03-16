@@ -1,0 +1,394 @@
+"""
+governance/data_quality/validators.py
+
+Core data quality validation engine for U.S. regulatory reporting.
+Aligned with BCBS 239, SR 11-7, and Financial Data Transparency Act requirements.
+
+Author: Kunal Kumar Singh
+License: Apache 2.0
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import hashlib
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+try:
+    from pyspark.sql import DataFrame, SparkSession
+    from pyspark.sql import functions as F
+    from pyspark.sql.types import StructType
+    PYSPARK_AVAILABLE = True
+except ImportError:  # pragma: no cover - enables lightweight import/test mode
+    DataFrame = Any  # type: ignore
+    SparkSession = Any  # type: ignore
+    StructType = Any  # type: ignore
+    F = None  # type: ignore
+    PYSPARK_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
+
+class Severity(str, Enum):
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+
+class RuleType(str, Enum):
+    NULLABILITY = "nullability"
+    RANGE = "range"
+    REFERENTIAL = "referential_integrity"
+    UNIQUENESS = "uniqueness"
+    CROSS_DATASET = "cross_dataset_reconciliation"
+    REGULATORY_FORMAT = "regulatory_format"
+    TIMELINESS = "timeliness"
+
+
+@dataclass
+class ValidationResult:
+    rule_id: str
+    rule_type: RuleType
+    column: str
+    severity: Severity
+    passed: bool
+    records_checked: int
+    records_failed: int
+    failure_rate_pct: float
+    details: str
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    regulatory_ref: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class AuditBundle:
+    bundle_id: str
+    reporting_date: str
+    regulatory_scope: str
+    dataset_hash: str
+    total_rules: int
+    passed_rules: int
+    failed_rules: int
+    critical_failures: int
+    results: list[ValidationResult]
+    generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    framework_version: str = "1.0.0"
+
+    @property
+    def pass_rate_pct(self) -> float:
+        if self.total_rules == 0:
+            return 0.0
+        return round(self.passed_rules / self.total_rules * 100, 2)
+
+    @property
+    def submission_ready(self) -> bool:
+        return self.critical_failures == 0
+
+    def to_json(self, path: str | Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as fh:
+            json.dump(
+                {
+                    **asdict(self),
+                    "pass_rate_pct": self.pass_rate_pct,
+                    "submission_ready": self.submission_ready,
+                },
+                fh,
+                indent=2,
+                default=str,
+            )
+        logger.info("Audit bundle written → %s", path)
+
+
+class RuleLoader:
+    def __init__(self, rule_path: str | Path) -> None:
+        self.rule_path = Path(rule_path)
+        self._rules: list[dict] = []
+
+    def load(self) -> list[dict]:
+        with open(self.rule_path) as fh:
+            contract = yaml.safe_load(fh)
+        self._rules = contract.get("rules", [])
+        logger.info("Loaded %d rules from %s", len(self._rules), self.rule_path)
+        return self._rules
+
+    @property
+    def rules(self) -> list[dict]:
+        if not self._rules:
+            self.load()
+        return self._rules
+
+
+class RegulatoryDataValidator:
+    """
+    Executes governance-as-code validation against PySpark DataFrames.
+    """
+
+    def __init__(self, spark: SparkSession, rules_path: str | Path) -> None:
+        self.spark = spark
+        self.rule_loader = RuleLoader(rules_path)
+        self.results: list[ValidationResult] = []
+
+    def validate(
+        self,
+        df: DataFrame,
+        reporting_date: str,
+        scope: str,
+        reference_df: DataFrame | None = None,
+    ) -> AuditBundle:
+        self.results = []
+        rules = self.rule_loader.rules
+        dataset_hash = self._hash_dataframe(df)
+
+        for rule in rules:
+            rule_type = RuleType(rule["type"])
+            try:
+                result = self._dispatch(rule, rule_type, df, reference_df)
+                self.results.append(result)
+            except Exception as exc:
+                logger.error("Rule %s failed with exception: %s", rule.get("id"), exc)
+                self.results.append(
+                    ValidationResult(
+                        rule_id=rule.get("id", "unknown"),
+                        rule_type=rule_type,
+                        column=rule.get("column", ""),
+                        severity=Severity(rule.get("severity", "HIGH")),
+                        passed=False,
+                        records_checked=0,
+                        records_failed=0,
+                        failure_rate_pct=0.0,
+                        details=f"Rule execution error: {exc}",
+                        regulatory_ref=rule.get("regulatory_ref", ""),
+                    )
+                )
+
+        passed = [r for r in self.results if r.passed]
+        failed = [r for r in self.results if not r.passed]
+        critical = [r for r in failed if r.severity == Severity.CRITICAL]
+
+        bundle = AuditBundle(
+            bundle_id=self._generate_bundle_id(scope, reporting_date),
+            reporting_date=reporting_date,
+            regulatory_scope=scope,
+            dataset_hash=dataset_hash,
+            total_rules=len(self.results),
+            passed_rules=len(passed),
+            failed_rules=len(failed),
+            critical_failures=len(critical),
+            results=self.results,
+        )
+
+        self._log_summary(bundle)
+        return bundle
+
+    def _require_pyspark(self) -> None:
+        if not PYSPARK_AVAILABLE or F is None:
+            raise ImportError(
+                "pyspark is required to execute dataframe validation checks. "
+                "Install requirements-full.txt for full pipeline support."
+            )
+
+    def _dispatch(
+        self,
+        rule: dict,
+        rule_type: RuleType,
+        df: DataFrame,
+        reference_df: DataFrame | None,
+    ) -> ValidationResult:
+        dispatch_map = {
+            RuleType.NULLABILITY: self._check_nullability,
+            RuleType.RANGE: self._check_range,
+            RuleType.UNIQUENESS: self._check_uniqueness,
+            RuleType.REFERENTIAL: self._check_referential_integrity,
+            RuleType.CROSS_DATASET: self._check_cross_dataset_reconciliation,
+            RuleType.REGULATORY_FORMAT: self._check_regulatory_format,
+            RuleType.TIMELINESS: self._check_timeliness,
+        }
+        return dispatch_map[rule_type](rule, df, reference_df)
+
+    def _check_nullability(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
+        self._require_pyspark()
+        column = rule["column"]
+        total = df.count()
+        failed = df.filter(F.col(column).isNull()).count()
+        return self._result(rule, RuleType.NULLABILITY, column, total, failed, f"Null check on {column}")
+
+    def _check_range(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
+        self._require_pyspark()
+        column = rule["column"]
+        minimum = rule.get("min_value", rule.get("min"))
+        maximum = rule.get("max_value", rule.get("max"))
+        total = df.count()
+
+        condition = None
+        if minimum is not None:
+            condition = F.col(column) < F.lit(minimum)
+        if maximum is not None:
+            upper = F.col(column) > F.lit(maximum)
+            condition = upper if condition is None else (condition | upper)
+
+        failed = df.filter(condition).count() if condition is not None else 0
+        return self._result(rule, RuleType.RANGE, column, total, failed, f"Range check on {column}")
+
+    def _check_uniqueness(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
+        self._require_pyspark()
+        columns = rule.get("columns")
+        column = rule.get("column")
+        if columns:
+            select_columns = columns
+            label = ", ".join(columns)
+        elif column:
+            select_columns = [column]
+            label = column
+        else:
+            raise ValueError("uniqueness rule requires 'column' or 'columns'")
+        total = df.count()
+        distinct_count = df.select(*select_columns).distinct().count()
+        failed = total - distinct_count
+        return self._result(rule, RuleType.UNIQUENESS, label, total, failed, f"Uniqueness check on {label}")
+
+    def _check_referential_integrity(
+        self, rule: dict, df: DataFrame, reference_df: DataFrame | None
+    ) -> ValidationResult:
+        self._require_pyspark()
+        column = rule["column"]
+        allowed_values = rule.get("allowed_values")
+        if allowed_values is not None:
+            total = df.count()
+            failed = df.filter(~F.col(column).isin(allowed_values)).count()
+            return self._result(
+                rule,
+                RuleType.REFERENTIAL,
+                column,
+                total,
+                failed,
+                f"Allowed values check on {column}",
+            )
+
+        if reference_df is None:
+            raise ValueError("reference_df is required for referential integrity checks")
+
+        reference_column = rule.get("reference_column", column)
+        total = df.count()
+
+        failed = (
+            df.join(
+                reference_df.select(F.col(reference_column).alias("_ref_key")).distinct(),
+                df[column] == F.col("_ref_key"),
+                "left",
+            )
+            .filter(F.col("_ref_key").isNull())
+            .count()
+        )
+
+        return self._result(
+            rule,
+            RuleType.REFERENTIAL,
+            column,
+            total,
+            failed,
+            f"Referential integrity check on {column}",
+        )
+
+    def _check_cross_dataset_reconciliation(
+        self, rule: dict, df: DataFrame, reference_df: DataFrame | None
+    ) -> ValidationResult:
+        self._require_pyspark()
+        if reference_df is None:
+            raise ValueError("reference_df is required for reconciliation checks")
+
+        column = rule["column"]
+        tolerance = float(rule.get("tolerance", rule.get("tolerance_pct", 0.0)))
+
+        source_sum = df.agg(F.sum(F.col(column)).alias("s")).collect()[0]["s"] or 0.0
+        ref_sum = reference_df.agg(F.sum(F.col(column)).alias("s")).collect()[0]["s"] or 0.0
+        diff = abs(float(source_sum) - float(ref_sum))
+        failed = 0 if diff <= tolerance else 1
+
+        return ValidationResult(
+            rule_id=rule["id"],
+            rule_type=RuleType.CROSS_DATASET,
+            column=column,
+            severity=Severity(rule.get("severity", "HIGH")),
+            passed=(failed == 0),
+            records_checked=1,
+            records_failed=failed,
+            failure_rate_pct=0.0 if failed == 0 else 100.0,
+            details=f"Reconciliation diff={diff}, tolerance={tolerance}",
+            regulatory_ref=rule.get("regulatory_ref", ""),
+        )
+
+    def _check_regulatory_format(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
+        self._require_pyspark()
+        column = rule["column"]
+        pattern = rule.get("pattern", rule.get("regex_pattern"))
+        if pattern is None:
+            raise ValueError("regulatory_format rule requires 'pattern' or 'regex_pattern'")
+        total = df.count()
+        failed = df.filter(~F.col(column).rlike(pattern)).count()
+        return self._result(rule, RuleType.REGULATORY_FORMAT, column, total, failed, f"Format check on {column}")
+
+    def _check_timeliness(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
+        self._require_pyspark()
+        column = rule["column"]
+        max_delay_days = rule.get("max_delay_days")
+        max_lag_minutes = rule.get("max_lag_minutes")
+        total = df.count()
+        if max_lag_minutes is not None:
+            cutoff_expr = F.expr(f"current_timestamp() - INTERVAL {int(max_lag_minutes)} MINUTES")
+            failed = df.filter(F.col(column) < cutoff_expr).count()
+        else:
+            max_delay_days = int(max_delay_days or 0)
+            failed = df.filter(F.datediff(F.current_date(), F.to_date(F.col(column))) > max_delay_days).count()
+        return self._result(rule, RuleType.TIMELINESS, column, total, failed, f"Timeliness check on {column}")
+
+    def _result(
+        self,
+        rule: dict,
+        rule_type: RuleType,
+        column: str,
+        total: int,
+        failed: int,
+        details: str,
+    ) -> ValidationResult:
+        rate = round((failed / total * 100), 2) if total else 0.0
+        return ValidationResult(
+            rule_id=rule["id"],
+            rule_type=rule_type,
+            column=column,
+            severity=Severity(rule.get("severity", "HIGH")),
+            passed=(failed == 0),
+            records_checked=total,
+            records_failed=failed,
+            failure_rate_pct=rate,
+            details=details,
+            regulatory_ref=rule.get("regulatory_ref", ""),
+        )
+
+    def _hash_dataframe(self, df: DataFrame) -> str:
+        return hashlib.sha256(str(df.schema).encode("utf-8")).hexdigest()
+
+    def _generate_bundle_id(self, scope: str, reporting_date: str) -> str:
+        raw = f"{scope}|{reporting_date}|{datetime.now(timezone.utc).isoformat()}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+    def _log_summary(self, bundle: AuditBundle) -> None:
+        logger.info(
+            "Validation complete: %s | pass_rate=%s%% | critical_failures=%s | submission_ready=%s",
+            bundle.bundle_id,
+            bundle.pass_rate_pct,
+            bundle.critical_failures,
+            bundle.submission_ready,
+        )

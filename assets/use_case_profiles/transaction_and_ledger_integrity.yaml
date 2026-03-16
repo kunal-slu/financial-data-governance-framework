@@ -1,0 +1,23 @@
+use_case_id: transaction_and_ledger_integrity
+summary: >
+  Validate transactional completeness, reconciliation consistency, and
+  traceable ledger movement across high-volume financial processing workflows.
+
+applicable_institution_types:
+  - depository_institution
+  - capital_markets_intermediary
+  - insurer
+  - digital_finance_platform
+
+typical_datasets:
+  - payment_events
+  - settlement_records
+  - journal_entries
+  - claims_movements
+
+primary_modules:
+  - validation_engine
+  - lineage_capture
+
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml

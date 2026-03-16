@@ -1,0 +1,5 @@
+services:
+  fdgf-demo:
+    build: .
+    working_dir: /app
+    command: python examples/run_lightweight_demo.py

@@ -1,0 +1,16 @@
+dataset: ccar_y14_demo
+version: 1.0
+rules:
+  - id: CCAR_001
+    type: nullability
+    column: loan_id
+    severity: CRITICAL
+    regulatory_ref: "CCAR data completeness control"
+
+  - id: CCAR_002
+    type: range
+    column: probability_of_default
+    min_value: 0.0
+    max_value: 1.0
+    severity: HIGH
+    regulatory_ref: "CCAR model input reasonableness"

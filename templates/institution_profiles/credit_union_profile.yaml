@@ -1,0 +1,11 @@
+institution_type: credit_union
+primary_control_domains:
+  - financial_reporting
+  - member_data_quality
+  - ledger_reconciliation
+  - audit_trail
+example_frameworks:
+  - machine_readable_reporting
+  - traceable_data_controls
+recommended_templates:
+  - templates/data_contracts/generic_financial_record_contract.yaml

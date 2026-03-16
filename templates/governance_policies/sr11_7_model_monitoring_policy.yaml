@@ -1,0 +1,26 @@
+policy_version: "1.0.0"
+effective_date: "2026-01-01"
+policy_owner: "Model Risk Management"
+regulatory_basis: "Federal Reserve SR 11-7 — Ongoing Monitoring"
+
+monitoring_scope:
+  required_fields:
+    - model_id
+    - model_version
+    - monitoring_period
+    - monitored_features
+    - score_column
+    - outcome_column
+
+thresholds:
+  drift_detection:
+    psi_threshold_warning: 0.10
+    psi_threshold_critical: 0.25
+  fairness_monitoring:
+    air_threshold: 0.80
+
+outputs:
+  required_artifacts:
+    - monitoring_summary
+    - exception_log
+    - approval_status

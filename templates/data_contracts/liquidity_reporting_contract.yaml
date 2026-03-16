@@ -1,0 +1,24 @@
+contract_name: liquidity_reporting_reference_contract
+version: 1.0
+regulatory_scope: Liquidity Reporting
+rules:
+  - id: LIQ-NULL-001
+    type: nullability
+    column: legal_entity_id
+    severity: CRITICAL
+    max_null_pct: 0.0
+    regulatory_ref: Liquidity reporting completeness
+
+  - id: LIQ-RANGE-001
+    type: range
+    column: liquidity_amount
+    severity: HIGH
+    min: 0.0
+    regulatory_ref: Liquidity balance reasonableness
+
+  - id: LIQ-FMT-001
+    type: regulatory_format
+    column: reporting_date
+    severity: HIGH
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    regulatory_ref: Reporting date format

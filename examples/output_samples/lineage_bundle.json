@@ -1,0 +1,42 @@
+{
+  "bundle_type": "LINEAGE_AUDIT",
+  "run_id": "RUN-DEMO-001",
+  "job_name": "fdgf_lightweight_demo",
+  "job_namespace": "fdgf.examples",
+  "regulatory_scope": "Illustrative regulatory control workflow",
+  "generated_at": "2026-03-31T12:00:00+00:00",
+  "framework_version": "1.0.0",
+  "total_events": 2,
+  "inputs": [
+    {
+      "name": "basel3_sample.csv",
+      "namespace": "local://sample_data",
+      "source_system": "DEMO_SOURCE",
+      "schema_version": "1.0",
+      "record_count": 4,
+      "byte_size": 0,
+      "dataset_hash": "08c3f47f9e5af2dc"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "daily_rollup",
+      "namespace": "local://demo_output",
+      "source_system": "FDGF_DEMO",
+      "schema_version": "1.0",
+      "record_count": 1,
+      "byte_size": 0,
+      "dataset_hash": "3ead684de9ae33aa"
+    }
+  ],
+  "transformations": [
+    {
+      "transform_id": "TRANSFORM-DEMO-001",
+      "transform_name": "exposure_rollup",
+      "transform_type": "AGGREGATE",
+      "sql_or_code": "sum(exposure_amount) by as_of_date",
+      "spark_plan": ""
+    }
+  ],
+  "lineage_hash": "ae39353e346f32a7026e3bdf17eadfb001fc3d326fc62c28816f23779c3c0521"
+}

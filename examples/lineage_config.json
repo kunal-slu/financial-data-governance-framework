@@ -1,0 +1,29 @@
+{
+  "job_name": "fdgf_lineage_demo",
+  "job_namespace": "fdgf.examples",
+  "regulatory_scope": "Illustrative regulatory reporting workflow",
+  "output_dir": "demo_output/lineage_cli",
+  "inputs": [
+    {
+      "name": "exposure_extract",
+      "namespace": "local://sample_data",
+      "source_system": "DEMO_SOURCE",
+      "record_count": 4
+    }
+  ],
+  "transformations": [
+    {
+      "name": "exposure_rollup",
+      "transform_type": "AGGREGATE",
+      "sql_or_code": "sum(exposure_amount) by reporting_date"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "reporting_rollup",
+      "namespace": "local://demo_output",
+      "source_system": "FDGF_DEMO",
+      "record_count": 1
+    }
+  ]
+}

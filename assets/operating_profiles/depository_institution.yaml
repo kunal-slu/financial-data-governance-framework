@@ -1,0 +1,10 @@
+institution_type: depository_institution
+primary_control_domains:
+  - reporting_controls
+  - capital_and_risk
+  - model_monitoring
+  - ledger_reconciliation
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml
+  - assets/control_sets/capital_exposure_controls.yaml
+  - assets/control_sets/scenario_projection_controls.yaml

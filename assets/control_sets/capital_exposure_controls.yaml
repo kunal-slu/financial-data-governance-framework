@@ -1,0 +1,48 @@
+dataset: capital_exposure_records
+version: 1.0
+rules:
+  - id: CAP_001
+    type: nullability
+    column: counterparty_id
+    severity: CRITICAL
+    regulatory_ref: "Exposure completeness"
+
+  - id: CAP_002
+    type: nullability
+    column: exposure_amount
+    severity: CRITICAL
+    regulatory_ref: "Exposure completeness"
+
+  - id: CAP_003
+    type: range
+    column: risk_weight_pct
+    min_value: 0.0
+    max_value: 1250.0
+    severity: CRITICAL
+    regulatory_ref: "Capital exposure reasonableness"
+
+  - id: CAP_004
+    type: uniqueness
+    columns:
+      - counterparty_id
+      - facility_id
+      - reporting_date
+    severity: HIGH
+    regulatory_ref: "Exposure record uniqueness"
+
+  - id: CAP_005
+    type: referential_integrity
+    column: currency_code
+    allowed_values:
+      - USD
+      - EUR
+      - GBP
+      - JPY
+      - CHF
+      - CAD
+      - AUD
+      - CNY
+      - HKD
+      - SGD
+    severity: MEDIUM
+    regulatory_ref: "Currency code standard"

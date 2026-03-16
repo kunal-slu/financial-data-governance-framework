@@ -1,0 +1,8 @@
+institution_type: asset_manager
+primary_control_domains:
+  - position_and_nav_controls
+  - investor_reporting
+  - lineage_and_audit
+  - model_monitoring
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml

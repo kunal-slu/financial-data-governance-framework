@@ -1,0 +1,15 @@
+institution_type: bank
+primary_control_domains:
+  - regulatory_reporting
+  - capital_and_risk
+  - model_governance
+  - ledger_reconciliation
+example_frameworks:
+  - Basel III
+  - CCAR
+  - BCBS 239
+  - SR 11-7
+recommended_templates:
+  - templates/data_contracts/generic_financial_record_contract.yaml
+  - templates/data_contracts/basel3_contract.yaml
+  - templates/data_contracts/ccar_contract.yaml

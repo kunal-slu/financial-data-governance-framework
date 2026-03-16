@@ -1,0 +1,11 @@
+institution_type: payment_or_fintech
+primary_control_domains:
+  - transaction_data_quality
+  - customer_ledger_controls
+  - fraud_model_monitoring
+  - lineage_and_audit
+example_frameworks:
+  - traceable_transaction_controls
+  - model_monitoring
+recommended_templates:
+  - templates/data_contracts/generic_financial_record_contract.yaml

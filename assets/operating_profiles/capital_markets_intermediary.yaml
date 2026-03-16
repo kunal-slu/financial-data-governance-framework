@@ -1,0 +1,8 @@
+institution_type: capital_markets_intermediary
+primary_control_domains:
+  - trade_data_controls
+  - position_reconciliation
+  - lineage_and_audit
+  - analytics_monitoring
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml

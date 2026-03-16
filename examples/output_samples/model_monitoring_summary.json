@@ -1,0 +1,9 @@
+{
+  "model_id": "DEMO_MODEL",
+  "model_version": "1.0.0",
+  "overall_status": "REVIEW_REQUIRED",
+  "drift_findings": 0,
+  "fairness_findings": 0,
+  "ready_for_review": false,
+  "explainability_status": "not_implemented"
+}

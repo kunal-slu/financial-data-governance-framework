@@ -1,0 +1,8 @@
+institution_type: insurer
+primary_control_domains:
+  - claims_data_controls
+  - policy_data_integrity
+  - actuarial_model_monitoring
+  - lineage_and_audit
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml

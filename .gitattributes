@@ -1,0 +1,7 @@
+.DS_Store export-ignore
+__MACOSX export-ignore
+.pytest_cache export-ignore
+demo_output export-ignore
+build export-ignore
+dist export-ignore
+*.egg-info export-ignore

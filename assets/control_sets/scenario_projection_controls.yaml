@@ -1,0 +1,29 @@
+dataset: scenario_projection_records
+version: 1.0
+rules:
+  - id: SCP_001
+    type: nullability
+    column: scenario_name
+    severity: CRITICAL
+    regulatory_ref: "Scenario completeness"
+
+  - id: SCP_002
+    type: nullability
+    column: projected_amount
+    severity: CRITICAL
+    regulatory_ref: "Projection completeness"
+
+  - id: SCP_003
+    type: range
+    column: projected_probability
+    min_value: 0.0
+    max_value: 1.0
+    severity: HIGH
+    regulatory_ref: "Projection probability reasonableness"
+
+  - id: SCP_004
+    type: regulatory_format
+    column: reporting_date
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    severity: HIGH
+    regulatory_ref: "Date format standard"

@@ -1,0 +1,26 @@
+use_case_id: regulatory_reporting_backbone
+summary: >
+  Standardize validation, lineage capture, and audit evidence for scheduled
+  regulatory and management reporting workflows.
+
+applicable_institution_types:
+  - depository_institution
+  - capital_markets_intermediary
+  - asset_manager
+  - insurer
+
+typical_datasets:
+  - ledger_balances
+  - exposure_snapshots
+  - scenario_outputs
+  - supervisory_reporting_extracts
+
+primary_modules:
+  - validation_engine
+  - lineage_capture
+  - workflow_controls
+
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml
+  - assets/control_sets/capital_exposure_controls.yaml
+  - assets/control_sets/scenario_projection_controls.yaml

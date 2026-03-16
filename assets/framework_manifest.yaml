@@ -1,0 +1,35 @@
+framework_name: FDGF
+framework_version: 1.0
+description: >
+  Financial data governance framework for reusable control implementation
+  across regulated financial institutions.
+
+supported_institution_types:
+  - depository_institution
+  - capital_markets_intermediary
+  - asset_manager
+  - insurer
+  - digital_finance_platform
+
+core_modules:
+  - validation_engine
+  - lineage_capture
+  - model_monitoring
+  - workflow_controls
+
+control_sets:
+  - assets/control_sets/universal_record_controls.yaml
+  - assets/control_sets/capital_exposure_controls.yaml
+  - assets/control_sets/scenario_projection_controls.yaml
+
+operating_profiles:
+  - assets/operating_profiles/depository_institution.yaml
+  - assets/operating_profiles/capital_markets_intermediary.yaml
+  - assets/operating_profiles/asset_manager.yaml
+  - assets/operating_profiles/insurer.yaml
+  - assets/operating_profiles/digital_finance_platform.yaml
+
+use_case_profiles:
+  - assets/use_case_profiles/regulatory_reporting_backbone.yaml
+  - assets/use_case_profiles/model_governance_monitoring.yaml
+  - assets/use_case_profiles/transaction_and_ledger_integrity.yaml

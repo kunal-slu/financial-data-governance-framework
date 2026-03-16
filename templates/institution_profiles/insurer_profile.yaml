@@ -1,0 +1,11 @@
+institution_type: insurer
+primary_control_domains:
+  - claims_data_quality
+  - policy_data_integrity
+  - actuarial_model_monitoring
+  - audit_trail
+example_frameworks:
+  - traceable_data_controls
+  - model_governance
+recommended_templates:
+  - templates/data_contracts/generic_financial_record_contract.yaml

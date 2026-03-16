@@ -1,0 +1,7 @@
+-r requirements-core.txt
+pyspark>=3.5
+delta-spark>=3.0
+scipy>=1.11
+fairlearn>=0.10
+openlineage-python>=1.20
+apache-airflow>=2.9

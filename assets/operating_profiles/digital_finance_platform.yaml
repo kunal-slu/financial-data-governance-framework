@@ -1,0 +1,8 @@
+institution_type: digital_finance_platform
+primary_control_domains:
+  - transaction_controls
+  - customer_ledger_controls
+  - fraud_monitoring
+  - lineage_and_audit
+recommended_control_sets:
+  - assets/control_sets/universal_record_controls.yaml

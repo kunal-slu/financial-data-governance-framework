@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fdgf.local/schemas/audit_bundle.schema.json",
+  "title": "FDGF Audit Bundle",
+  "type": "object",
+  "required": [
+    "bundle_id",
+    "reporting_date",
+    "regulatory_scope",
+    "total_rules",
+    "passed_rules",
+    "failed_rules",
+    "critical_failures",
+    "submission_ready"
+  ],
+  "properties": {
+    "bundle_id": { "type": "string" },
+    "reporting_date": { "type": "string" },
+    "regulatory_scope": { "type": "string" },
+    "total_rules": { "type": "integer", "minimum": 0 },
+    "passed_rules": { "type": "integer", "minimum": 0 },
+    "failed_rules": { "type": "integer", "minimum": 0 },
+    "critical_failures": { "type": "integer", "minimum": 0 },
+    "submission_ready": { "type": "boolean" },
+    "critical_rule_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}

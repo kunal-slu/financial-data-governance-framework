@@ -1,0 +1,24 @@
+contract_name: fdta_reporting_reference_contract
+version: 1.0
+regulatory_scope: FDTA
+rules:
+  - id: FDTA-NULL-001
+    type: nullability
+    column: record_id
+    severity: CRITICAL
+    max_null_pct: 0.0
+    regulatory_ref: Machine-readable completeness
+
+  - id: FDTA-FMT-001
+    type: regulatory_format
+    column: reporting_date
+    severity: HIGH
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    regulatory_ref: Machine-readable date formatting
+
+  - id: FDTA-UNQ-001
+    type: uniqueness
+    columns:
+      - record_id
+    severity: HIGH
+    regulatory_ref: Record-level uniqueness

@@ -1,0 +1,242 @@
+# ============================================================
+# Basel III RWA Reporting — Data Quality Contract
+# Financial Data Governance Framework (FDGF)
+#
+# Regulatory alignment:
+#   - BCBS 239 Principles 3, 4, 5 (Accuracy, Completeness, Timeliness)
+#   - Federal Reserve SR 11-7 (Model Risk Management)
+#   - Financial Data Transparency Act (2022)
+#
+# Usage:
+#   validator = RegulatoryDataValidator(spark, "templates/data_contracts/basel3_contract.yaml")
+#   bundle = validator.validate(df, reporting_date="2026-03-31", scope="Basel III RWA")
+# ============================================================
+
+contract_version: "1.0.0"
+regulatory_scope: "Basel III RWA"
+effective_date: "2026-01-01"
+maintained_by: "Kunal Kumar Singh — FDGF Open Source Project"
+license: "Apache 2.0"
+
+rules:
+
+  # ----------------------------------------------------------
+  # NULLABILITY RULES
+  # ----------------------------------------------------------
+
+  - id: "BAS-NULL-001"
+    type: nullability
+    column: "counterparty_id"
+    severity: CRITICAL
+    max_null_pct: 0.0
+    description: "Counterparty ID must never be null — required for RWA exposure mapping."
+    regulatory_ref: "BCBS 239 Principle 3 — Accuracy & Integrity"
+
+  - id: "BAS-NULL-002"
+    type: nullability
+    column: "exposure_amount"
+    severity: CRITICAL
+    max_null_pct: 0.0
+    description: "Exposure amount cannot be null — feeds capital requirement calculations."
+    regulatory_ref: "BCBS 239 Principle 3 — Accuracy & Integrity"
+
+  - id: "BAS-NULL-003"
+    type: nullability
+    column: "risk_weight_pct"
+    severity: CRITICAL
+    max_null_pct: 0.0
+    description: "Risk weight percentage must be populated for all exposures."
+    regulatory_ref: "Basel III Standardized Approach — Article 122"
+
+  - id: "BAS-NULL-004"
+    type: nullability
+    column: "asset_class"
+    severity: HIGH
+    max_null_pct: 0.1
+    description: "Asset class classification required for RWA bucketing."
+    regulatory_ref: "BCBS 239 Principle 4 — Completeness"
+
+  - id: "BAS-NULL-005"
+    type: nullability
+    column: "reporting_date"
+    severity: CRITICAL
+    max_null_pct: 0.0
+    description: "Reporting date is mandatory on all Basel III records."
+    regulatory_ref: "FDTA — Machine-Readable Data Standards"
+
+  - id: "BAS-NULL-006"
+    type: nullability
+    column: "source_system_id"
+    severity: HIGH
+    max_null_pct: 0.0
+    description: "Source system identifier required for end-to-end lineage tracking."
+    regulatory_ref: "BCBS 239 Principle 2 — Data Architecture"
+
+  # ----------------------------------------------------------
+  # RANGE RULES
+  # ----------------------------------------------------------
+
+  - id: "BAS-RNG-001"
+    type: range
+    column: "risk_weight_pct"
+    severity: CRITICAL
+    min: 0
+    max: 1250
+    description: "Risk weight percentages must be within 0–1250% per Basel III standardized table."
+    regulatory_ref: "Basel III — Table of Risk Weights"
+
+  - id: "BAS-RNG-002"
+    type: range
+    column: "exposure_amount"
+    severity: CRITICAL
+    min: 0
+    max: null
+    description: "Exposure amount must be non-negative."
+    regulatory_ref: "BCBS 239 Principle 3 — Accuracy"
+
+  - id: "BAS-RNG-003"
+    type: range
+    column: "maturity_years"
+    severity: HIGH
+    min: 0
+    max: 50
+    description: "Maturity must be between 0 and 50 years."
+    regulatory_ref: "Basel III IRB — Effective Maturity"
+
+  - id: "BAS-RNG-004"
+    type: range
+    column: "pd_estimate"
+    severity: HIGH
+    min: 0.0003
+    max: 1.0
+    description: "Probability of Default must be >= 0.03% (Basel minimum) and <= 100%."
+    regulatory_ref: "Basel III IRB — PD Floor (0.03%)"
+
+  - id: "BAS-RNG-005"
+    type: range
+    column: "lgd_estimate"
+    severity: HIGH
+    min: 0.0
+    max: 1.0
+    description: "Loss Given Default must be between 0 and 100%."
+    regulatory_ref: "Basel III IRB — LGD Estimation"
+
+  # ----------------------------------------------------------
+  # UNIQUENESS RULES
+  # ----------------------------------------------------------
+
+  - id: "BAS-UNQ-001"
+    type: uniqueness
+    columns: ["counterparty_id", "facility_id", "reporting_date"]
+    severity: CRITICAL
+    description: "Each exposure record must be uniquely identified by counterparty + facility + date."
+    regulatory_ref: "BCBS 239 Principle 4 — Completeness"
+
+  - id: "BAS-UNQ-002"
+    type: uniqueness
+    columns: ["record_id"]
+    severity: HIGH
+    description: "Record ID must be globally unique across the dataset."
+    regulatory_ref: "FDTA — Data Element Identification"
+
+  # ----------------------------------------------------------
+  # REFERENTIAL INTEGRITY RULES
+  # ----------------------------------------------------------
+
+  - id: "BAS-REF-001"
+    type: referential_integrity
+    column: "asset_class"
+    severity: HIGH
+    allowed_values:
+      - "CORPORATE"
+      - "SOVEREIGN"
+      - "BANK"
+      - "RETAIL"
+      - "EQUITY"
+      - "SECURITIZATION"
+      - "OTHER"
+    description: "Asset class must map to a recognized Basel III exposure category."
+    regulatory_ref: "Basel III — Chapter 2: Asset Class Definitions"
+
+  - id: "BAS-REF-002"
+    type: referential_integrity
+    column: "approach_type"
+    severity: HIGH
+    allowed_values:
+      - "SA"     # Standardized Approach
+      - "FIRB"   # Foundation IRB
+      - "AIRB"   # Advanced IRB
+    description: "Approach type must be one of the three Basel III credit risk approaches."
+    regulatory_ref: "Basel III — Credit Risk Approaches"
+
+  - id: "BAS-REF-003"
+    type: referential_integrity
+    column: "currency_code"
+    severity: MEDIUM
+    allowed_values:
+      - "USD"
+      - "EUR"
+      - "GBP"
+      - "JPY"
+      - "CHF"
+      - "CAD"
+      - "AUD"
+      - "CNY"
+      - "HKD"
+      - "SGD"
+    description: "Currency must be an ISO 4217 major currency code."
+    regulatory_ref: "FDTA — Common Identifiers (Currency)"
+
+  # ----------------------------------------------------------
+  # CROSS-DATASET RECONCILIATION RULES  (BCBS 239 Principle 5)
+  # ----------------------------------------------------------
+
+  - id: "BAS-RECON-001"
+    type: cross_dataset_reconciliation
+    column: "exposure_amount"
+    severity: CRITICAL
+    tolerance_pct: 0.1
+    description: >
+      Total exposure amounts must reconcile with the general ledger source
+      within 0.1% tolerance. Discrepancies above threshold block regulatory submission.
+    regulatory_ref: "BCBS 239 Principle 5 — Timeliness & Principle 3 — Accuracy"
+
+  # ----------------------------------------------------------
+  # REGULATORY FORMAT RULES  (FDTA — Machine-Readable Standards)
+  # ----------------------------------------------------------
+
+  - id: "BAS-FMT-001"
+    type: regulatory_format
+    column: "reporting_date"
+    severity: HIGH
+    regex_pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    description: "Reporting date must conform to ISO 8601 format (YYYY-MM-DD)."
+    regulatory_ref: "FDTA — Joint Data Standards: Dates"
+
+  - id: "BAS-FMT-002"
+    type: regulatory_format
+    column: "lei_code"
+    severity: HIGH
+    regex_pattern: "^[A-Z0-9]{18}\\d{2}$"
+    description: "Legal Entity Identifier must be a valid 20-character LEI format."
+    regulatory_ref: "FDTA — Joint Data Standards: Legal Entities"
+
+  # ----------------------------------------------------------
+  # TIMELINESS RULES  (BCBS 239 Principle 5)
+  # ----------------------------------------------------------
+
+  - id: "BAS-TIME-001"
+    type: timeliness
+    column: "ingestion_timestamp"
+    severity: HIGH
+    max_lag_minutes: 120
+    description: "Data must be ingested within 2 hours of the source system extract."
+    regulatory_ref: "BCBS 239 Principle 5 — Timeliness"
+
+  - id: "BAS-TIME-002"
+    type: timeliness
+    column: "last_updated_timestamp"
+    severity: MEDIUM
+    max_lag_minutes: 1440
+    description: "Records must have been updated within the past 24 hours on reporting days."
+    regulatory_ref: "BCBS 239 Principle 5 — Timeliness"

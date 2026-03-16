@@ -1,0 +1,215 @@
+# ============================================================
+# SR 11-7 Model Risk Governance Policy Template
+# Financial Data Governance Framework (FDGF)
+#
+# This YAML template translates Federal Reserve SR 11-7 guidance
+# into machine-executable governance configuration that any U.S.
+# bank can adopt to operationalize model risk management requirements.
+#
+# "Governance-as-code" — policy defined once, enforced automatically
+# across all model pipelines.
+#
+# Regulatory reference:
+#   Federal Reserve / OCC: SR 11-7 (April 2011)
+#   "Guidance on Model Risk Management"
+#
+# Author: Kunal Kumar Singh — FDGF Open Source Project
+# License: Apache 2.0
+# ============================================================
+
+policy_version: "1.0.0"
+effective_date: "2026-01-01"
+policy_owner: "Model Risk Management"
+regulatory_basis: "Federal Reserve SR 11-7 — Guidance on Model Risk Management"
+
+# ----------------------------------------------------------
+# Model Inventory Requirements
+# (SR 11-7: "Organizations should maintain an inventory of models")
+# ----------------------------------------------------------
+model_inventory:
+  required_fields:
+    - model_id
+    - model_name
+    - model_version
+    - model_type             # e.g. CREDIT_RISK, FRAUD_DETECTION, STRESS_TEST
+    - business_use
+    - development_date
+    - last_validation_date
+    - next_validation_due
+    - model_owner
+    - validation_owner
+    - status                 # DEVELOPMENT, VALIDATION, PRODUCTION, RETIRED
+    - tier                   # 1=High Risk, 2=Medium Risk, 3=Low Risk
+    - regulatory_applications # e.g. ["CCAR", "Basel III IRB"]
+
+  validation_schedule:
+    tier_1_months: 12    # High-risk models: validate annually
+    tier_2_months: 18    # Medium-risk: every 18 months
+    tier_3_months: 24    # Low-risk: every 2 years
+
+# ----------------------------------------------------------
+# Model Development Standards
+# (SR 11-7: "Sound development process")
+# ----------------------------------------------------------
+development_standards:
+  required_documentation:
+    - model_purpose_statement
+    - methodology_description
+    - data_sources_and_preprocessing
+    - variable_selection_rationale
+    - assumptions_and_limitations
+    - out_of_scope_uses
+    - performance_benchmarks
+    - back_testing_results
+
+  data_quality_requirements:
+    min_training_sample_size: 1000
+    max_missing_pct: 5.0
+    required_out_of_time_validation: true
+    required_out_of_sample_validation: true
+
+# ----------------------------------------------------------
+# Model Validation Requirements
+# (SR 11-7: "Effective validation — Conceptual Soundness,
+#  Ongoing Monitoring, Outcomes Analysis")
+# ----------------------------------------------------------
+validation_requirements:
+  independence:
+    validator_must_be_independent: true
+    no_model_developer_as_validator: true
+
+  conceptual_soundness:
+    required_checks:
+      - theoretical_basis_review
+      - variable_selection_review
+      - benchmark_model_comparison
+      - sensitivity_analysis
+      - stress_testing
+
+  ongoing_monitoring:
+    drift_detection:
+      psi_threshold_warning:  0.10
+      psi_threshold_critical: 0.25
+      ks_pvalue_threshold:    0.01
+      monitoring_frequency:   MONTHLY
+
+    performance_thresholds:
+      min_auc_roc:    0.70
+      max_gini_decay: 0.05    # Max acceptable Gini decay vs. development baseline
+      max_ks_stat_decline: 0.05
+
+    escalation_triggers:
+      - condition: "PSI > 0.25"
+        action: "Immediate model review — escalate to Model Risk Committee"
+        sla_hours: 24
+      - condition: "AUC_ROC < min_auc_roc"
+        action: "Model redevelopment required"
+        sla_hours: 72
+      - condition: "AIR < 0.80"
+        action: "Fair lending review — notify Compliance immediately"
+        sla_hours: 4
+
+  outcomes_analysis:
+    back_testing_frequency: QUARTERLY
+    required_metrics:
+      - gini_coefficient
+      - ks_statistic
+      - auc_roc
+      - brier_score
+      - hosmer_lemeshow_p_value
+
+# ----------------------------------------------------------
+# Fairness and Bias Requirements
+# (Equal Credit Opportunity Act / CFPB Fair Lending)
+# ----------------------------------------------------------
+fairness_requirements:
+  applicable_models:
+    - CREDIT_SCORING
+    - LOAN_APPROVAL
+    - FRAUD_DETECTION
+    - COLLECTIONS
+
+  air_threshold: 0.80          # Adverse Impact Ratio — "4/5ths rule"
+  protected_attributes:
+    - race_ethnicity
+    - sex
+    - national_origin
+    - age
+    - marital_status
+    - familial_status
+
+  required_reports:
+    - adverse_impact_ratio_by_group
+    - false_positive_rate_by_group
+    - approval_rate_by_group
+    - monitoring_frequency: QUARTERLY
+
+# ----------------------------------------------------------
+# Explainability Requirements
+# (SR 11-7: "Understanding of model limitations")
+# ----------------------------------------------------------
+explainability:
+  required_for_tiers: [1, 2]
+  accepted_methods:
+    - SHAP
+    - LIME
+    - INTEGRATED_GRADIENTS
+    - PARTIAL_DEPENDENCE_PLOTS
+
+  documentation_requirements:
+    - global_feature_importance
+    - local_explanation_sample_size: 100
+    - counterfactual_examples: true
+    - decision_boundary_description: true
+
+# ----------------------------------------------------------
+# Change Management and Approval Workflow
+# (SR 11-7: "Governance, Policies, and Controls")
+# ----------------------------------------------------------
+change_management:
+  model_change_types:
+    MINOR:
+      description: "Parameter recalibration, data refresh — no structural change"
+      approvals_required: ["Model Owner", "Validation Lead"]
+      sla_days: 5
+
+    MODERATE:
+      description: "Variable addition/removal, threshold change"
+      approvals_required: ["Model Owner", "Validation Lead", "Model Risk Manager"]
+      sla_days: 15
+      requires_validation: true
+
+    MAJOR:
+      description: "Methodology change, full redevelopment"
+      approvals_required: ["Model Owner", "Chief Risk Officer", "Model Risk Committee"]
+      sla_days: 30
+      requires_full_validation: true
+      requires_parallel_run: true
+
+  version_control:
+    required: true
+    system: "Git"                  # All model code version-controlled
+    immutable_artifacts: true      # Trained model artifacts stored immutably (S3 Object Lock)
+    audit_log_retention_years: 7   # Consistent with SOX retention requirements
+
+# ----------------------------------------------------------
+# Audit Trail and Evidence Requirements
+# (SR 11-7 + FDTA machine-readable standards)
+# ----------------------------------------------------------
+audit_requirements:
+  evidence_per_run:
+    - validation_results_json
+    - lineage_audit_bundle
+    - model_performance_metrics
+    - drift_detection_results
+    - fairness_assessment_results
+    - approvals_and_sign_offs
+
+  retention:
+    audit_bundles_years: 7
+    model_artifacts_years: 7
+    lineage_records_years: 7
+    storage_mode: "WORM"          # Write Once Read Many — tamper-evident
+
+  machine_readable_format: true   # FDTA compliance
+  openlineage_compatible: true    # Interoperability with regulatory systems
