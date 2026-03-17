@@ -5,6 +5,41 @@
 
 FDGF is a public technical framework for regulator-aligned financial data governance. It includes working examples of data-quality validation, lineage capture, model-monitoring checks, and audit-oriented pipeline components that can be adapted across regulated financial institutions, with the most concrete examples centered on U.S. regulatory reporting and risk-governance workflows.
 
+## At A Glance
+
+- Scope: reference implementation for governance-as-code in regulated financial data workflows
+- Core themes: data quality, lineage, auditability, and model-governance monitoring
+- Primary examples: Basel III-, CCAR-, BCBS 239-, and SR 11-7-aligned control patterns
+- Runtime model: source-checkout framework with runnable demos, templates, schemas, and sample artifacts
+
+## Quick Start
+
+Install dependencies and run the local demo:
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 examples/run_lightweight_demo.py
+```
+
+Then inspect the sample artifacts and docs:
+
+- [Quickstart](docs/quickstart.md)
+- [Architecture](docs/architecture.md)
+- [Control Mapping](docs/control_mapping.md)
+- [Problem Statement](docs/problem_statement.md)
+- [Output Samples](examples/output_samples/README.md)
+
+## What The Repository Includes
+
+- framework modules under `governance/`
+- example contracts and policy templates under `templates/`
+- operating, control, and use-case assets under `assets/`
+- JSON schemas under `schemas/`
+- synthetic sample inputs under `sample_data/`
+- runnable examples under `examples/`
+- tests under `tests/`
+- supporting documentation under `docs/`
+
 ## Repository Layout
 
 - `governance/data_quality/validators.py`
@@ -96,6 +131,8 @@ Examples in the repository are tied to familiar control domains such as:
 - It does not claim that the repository by itself satisfies supervisory or internal control requirements.
 
 ## Running the Repository
+
+FDGF is currently intended to be used from a source checkout so that templates, schemas, sample data, examples, and documentation remain available alongside the Python modules.
 
 Install the dependencies:
 
