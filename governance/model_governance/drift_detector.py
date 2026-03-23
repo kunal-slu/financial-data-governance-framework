@@ -147,12 +147,39 @@ class PSICalculator:
         feature_name: str,
         model_id: str,
     ) -> DriftResult:
-        bins = np.percentile(baseline.dropna(), np.linspace(0, 100, self.N_BINS + 1))
-        bins[0]  -= 1e-8
-        bins[-1] += 1e-8
+        baseline_clean = pd.to_numeric(baseline, errors="coerce").dropna()
+        current_clean = pd.to_numeric(current, errors="coerce").dropna()
+        if baseline_clean.empty or current_clean.empty:
+            return DriftResult(
+                model_id=model_id,
+                feature=feature_name,
+                metric="PSI",
+                value=0.0,
+                threshold=self.PSI_YELLOW,
+                drifted=False,
+                severity="LOW",
+                interpretation="PSI skipped because baseline or current series is empty.",
+            )
 
-        baseline_pcts = self._bin_distribution(baseline, bins)
-        current_pcts  = self._bin_distribution(current,  bins)
+        bins = self._build_bins(baseline_clean, current_clean)
+        if bins is None:
+            warnings.warn(
+                f"PSI skipped for {feature_name}: insufficient variation to build stable bins.",
+                RuntimeWarning,
+            )
+            return DriftResult(
+                model_id=model_id,
+                feature=feature_name,
+                metric="PSI",
+                value=0.0,
+                threshold=self.PSI_YELLOW,
+                drifted=False,
+                severity="LOW",
+                interpretation="PSI skipped because the feature does not have enough variation.",
+            )
+
+        baseline_pcts = self._bin_distribution(baseline_clean, bins)
+        current_pcts  = self._bin_distribution(current_clean, bins)
 
         psi = float(np.sum(
             (current_pcts - baseline_pcts) * np.log((current_pcts + 1e-10) / (baseline_pcts + 1e-10))
@@ -185,8 +212,29 @@ class PSICalculator:
     @staticmethod
     def _bin_distribution(series: pd.Series, bins: np.ndarray) -> np.ndarray:
         counts, _ = np.histogram(series.dropna(), bins=bins)
-        pcts = counts / counts.sum()
+        total = counts.sum()
+        if total == 0:
+            return np.zeros(len(bins) - 1)
+        pcts = counts / total
         return pcts
+
+    def _build_bins(self, baseline: pd.Series, current: pd.Series) -> np.ndarray | None:
+        combined = pd.concat([baseline, current]).dropna()
+        if combined.nunique() < 2:
+            return None
+
+        quantiles = np.percentile(baseline, np.linspace(0, 100, self.N_BINS + 1))
+        bins = np.unique(quantiles)
+        if len(bins) < 3:
+            minimum = float(combined.min())
+            maximum = float(combined.max())
+            if minimum == maximum:
+                return None
+            bins = np.linspace(minimum, maximum, self.N_BINS + 1)
+
+        bins[0] -= 1e-8
+        bins[-1] += 1e-8
+        return bins
 
 
 # ---------------------------------------------------------------------------
@@ -267,13 +315,37 @@ class FairnessChecker:
         reference_group:  str,
         model_id:         str,
     ) -> list[FairnessResult]:
+        if len(y_pred) != len(sensitive_feature):
+            raise ValueError("y_pred and sensitive_feature must have the same length.")
+
+        valid_mask = y_pred.notna() & sensitive_feature.notna()
+        y_pred = y_pred[valid_mask]
+        sensitive_feature = sensitive_feature[valid_mask]
+        if y_pred.empty:
+            raise ValueError("Fairness check requires at least one non-null prediction.")
+
+        numeric_pred = pd.to_numeric(y_pred, errors="coerce")
+        if numeric_pred.isna().any():
+            raise ValueError("Fairness check requires binary numeric or boolean predictions.")
+        if not numeric_pred.isin([0, 1]).all():
+            raise ValueError("Fairness check expects predictions encoded as 0/1 or boolean values.")
+        if reference_group not in set(sensitive_feature):
+            raise ValueError(f"Reference group '{reference_group}' is not present in sensitive_feature.")
+
         results = []
-        ref_rate = y_pred[sensitive_feature == reference_group].mean()
+        ref_rate = numeric_pred[sensitive_feature == reference_group].mean()
+        if pd.isna(ref_rate):
+            raise ValueError(f"Reference group '{reference_group}' has no valid predictions.")
+        if ref_rate == 0:
+            raise ValueError("Reference group selection rate is zero; AIR is not meaningful.")
 
         for group in sensitive_feature.unique():
             if group == reference_group:
                 continue
-            group_rate = y_pred[sensitive_feature == group].mean()
+            group_values = numeric_pred[sensitive_feature == group]
+            if group_values.empty:
+                continue
+            group_rate = group_values.mean()
             air = group_rate / ref_rate if ref_rate > 0 else 0.0
 
             results.append(FairnessResult(

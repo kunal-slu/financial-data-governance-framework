@@ -36,6 +36,10 @@ except ImportError:  # pragma: no cover - enables lightweight import/test mode
 logger = logging.getLogger(__name__)
 
 
+class ContractValidationError(ValueError):
+    """Raised when a YAML rule contract is malformed or internally inconsistent."""
+
+
 class Severity(str, Enum):
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
@@ -119,8 +123,13 @@ class RuleLoader:
 
     def load(self) -> list[dict]:
         with open(self.rule_path) as fh:
-            contract = yaml.safe_load(fh)
-        self._rules = contract.get("rules", [])
+            contract = yaml.safe_load(fh) or {}
+        rules = contract.get("rules", [])
+        if not isinstance(rules, list):
+            raise ContractValidationError(
+                f"Contract {self.rule_path} must contain a top-level 'rules' list."
+            )
+        self._rules = [self._validate_rule(rule, idx) for idx, rule in enumerate(rules, start=1)]
         logger.info("Loaded %d rules from %s", len(self._rules), self.rule_path)
         return self._rules
 
@@ -129,6 +138,80 @@ class RuleLoader:
         if not self._rules:
             self.load()
         return self._rules
+
+    @staticmethod
+    def _validate_rule(rule: dict[str, Any], index: int) -> dict[str, Any]:
+        if not isinstance(rule, dict):
+            raise ContractValidationError(f"Rule #{index} must be a mapping.")
+
+        rule_id = rule.get("id", f"rule_{index}")
+        for field_name in ("id", "type", "severity"):
+            if field_name not in rule:
+                raise ContractValidationError(f"Rule {rule_id} is missing required field '{field_name}'.")
+
+        try:
+            rule_type = RuleType(rule["type"])
+        except ValueError as exc:
+            raise ContractValidationError(
+                f"Rule {rule_id} has unknown rule type '{rule['type']}'."
+            ) from exc
+
+        try:
+            Severity(rule["severity"])
+        except ValueError as exc:
+            raise ContractValidationError(
+                f"Rule {rule_id} has invalid severity '{rule['severity']}'."
+            ) from exc
+
+        if rule_type in {RuleType.NULLABILITY, RuleType.RANGE, RuleType.REFERENTIAL,
+                         RuleType.CROSS_DATASET, RuleType.REGULATORY_FORMAT, RuleType.TIMELINESS}:
+            if "column" not in rule:
+                raise ContractValidationError(f"Rule {rule_id} requires field 'column'.")
+
+        if rule_type == RuleType.RANGE:
+            minimum = rule.get("min_value", rule.get("min"))
+            maximum = rule.get("max_value", rule.get("max"))
+            if minimum is None and maximum is None:
+                raise ContractValidationError(
+                    f"Rule {rule_id} requires at least one of 'min', 'max', 'min_value', or 'max_value'."
+                )
+            if minimum is not None and maximum is not None and minimum > maximum:
+                raise ContractValidationError(
+                    f"Rule {rule_id} has invalid range: min {minimum} is greater than max {maximum}."
+                )
+
+        if rule_type == RuleType.UNIQUENESS:
+            column = rule.get("column")
+            columns = rule.get("columns")
+            if column is None and columns is None:
+                raise ContractValidationError(
+                    f"Rule {rule_id} requires either 'column' or 'columns'."
+                )
+            if columns is not None and (not isinstance(columns, list) or not columns):
+                raise ContractValidationError(
+                    f"Rule {rule_id} field 'columns' must be a non-empty list."
+                )
+
+        if rule_type == RuleType.REFERENTIAL:
+            allowed_values = rule.get("allowed_values")
+            if allowed_values is not None and (not isinstance(allowed_values, list) or not allowed_values):
+                raise ContractValidationError(
+                    f"Rule {rule_id} field 'allowed_values' must be a non-empty list when provided."
+                )
+
+        if rule_type == RuleType.REGULATORY_FORMAT:
+            if rule.get("pattern") is None and rule.get("regex_pattern") is None:
+                raise ContractValidationError(
+                    f"Rule {rule_id} requires 'pattern' or 'regex_pattern'."
+                )
+
+        if rule_type == RuleType.TIMELINESS:
+            if rule.get("max_delay_days") is None and rule.get("max_lag_minutes") is None:
+                raise ContractValidationError(
+                    f"Rule {rule_id} requires 'max_delay_days' or 'max_lag_minutes'."
+                )
+
+        return rule
 
 
 class RegulatoryDataValidator:
@@ -148,31 +231,37 @@ class RegulatoryDataValidator:
         scope: str,
         reference_df: DataFrame | None = None,
     ) -> AuditBundle:
+        self._require_pyspark()
         self.results = []
         rules = self.rule_loader.rules
-        dataset_hash = self._hash_dataframe(df)
+        persisted_df = df.persist()
+        total_rows = persisted_df.count()
+        dataset_hash = self._fingerprint_dataframe(persisted_df, total_rows)
 
-        for rule in rules:
-            rule_type = RuleType(rule["type"])
-            try:
-                result = self._dispatch(rule, rule_type, df, reference_df)
-                self.results.append(result)
-            except Exception as exc:
-                logger.error("Rule %s failed with exception: %s", rule.get("id"), exc)
-                self.results.append(
-                    ValidationResult(
-                        rule_id=rule.get("id", "unknown"),
-                        rule_type=rule_type,
-                        column=rule.get("column", ""),
-                        severity=Severity(rule.get("severity", "HIGH")),
-                        passed=False,
-                        records_checked=0,
-                        records_failed=0,
-                        failure_rate_pct=0.0,
-                        details=f"Rule execution error: {exc}",
-                        regulatory_ref=rule.get("regulatory_ref", ""),
+        try:
+            for rule in rules:
+                rule_type = RuleType(rule["type"])
+                try:
+                    result = self._dispatch(rule, rule_type, persisted_df, reference_df, total_rows)
+                    self.results.append(result)
+                except Exception as exc:
+                    logger.error("Rule %s failed with exception: %s", rule.get("id"), exc)
+                    self.results.append(
+                        ValidationResult(
+                            rule_id=rule.get("id", "unknown"),
+                            rule_type=rule_type,
+                            column=rule.get("column", ""),
+                            severity=Severity(rule.get("severity", "HIGH")),
+                            passed=False,
+                            records_checked=0,
+                            records_failed=0,
+                            failure_rate_pct=0.0,
+                            details=f"Rule execution error: {exc}",
+                            regulatory_ref=rule.get("regulatory_ref", ""),
+                        )
                     )
-                )
+        finally:
+            persisted_df.unpersist()
 
         passed = [r for r in self.results if r.passed]
         failed = [r for r in self.results if not r.passed]
@@ -206,6 +295,7 @@ class RegulatoryDataValidator:
         rule_type: RuleType,
         df: DataFrame,
         reference_df: DataFrame | None,
+        total_rows: int,
     ) -> ValidationResult:
         dispatch_map = {
             RuleType.NULLABILITY: self._check_nullability,
@@ -216,21 +306,21 @@ class RegulatoryDataValidator:
             RuleType.REGULATORY_FORMAT: self._check_regulatory_format,
             RuleType.TIMELINESS: self._check_timeliness,
         }
-        return dispatch_map[rule_type](rule, df, reference_df)
+        return dispatch_map[rule_type](rule, df, reference_df, total_rows)
 
-    def _check_nullability(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
-        self._require_pyspark()
+    def _check_nullability(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+    ) -> ValidationResult:
         column = rule["column"]
-        total = df.count()
         failed = df.filter(F.col(column).isNull()).count()
-        return self._result(rule, RuleType.NULLABILITY, column, total, failed, f"Null check on {column}")
+        return self._result(rule, RuleType.NULLABILITY, column, total_rows, failed, f"Null check on {column}")
 
-    def _check_range(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
-        self._require_pyspark()
+    def _check_range(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+    ) -> ValidationResult:
         column = rule["column"]
         minimum = rule.get("min_value", rule.get("min"))
         maximum = rule.get("max_value", rule.get("max"))
-        total = df.count()
 
         condition = None
         if minimum is not None:
@@ -240,10 +330,11 @@ class RegulatoryDataValidator:
             condition = upper if condition is None else (condition | upper)
 
         failed = df.filter(condition).count() if condition is not None else 0
-        return self._result(rule, RuleType.RANGE, column, total, failed, f"Range check on {column}")
+        return self._result(rule, RuleType.RANGE, column, total_rows, failed, f"Range check on {column}")
 
-    def _check_uniqueness(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
-        self._require_pyspark()
+    def _check_uniqueness(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+    ) -> ValidationResult:
         columns = rule.get("columns")
         column = rule.get("column")
         if columns:
@@ -254,25 +345,22 @@ class RegulatoryDataValidator:
             label = column
         else:
             raise ValueError("uniqueness rule requires 'column' or 'columns'")
-        total = df.count()
         distinct_count = df.select(*select_columns).distinct().count()
-        failed = total - distinct_count
-        return self._result(rule, RuleType.UNIQUENESS, label, total, failed, f"Uniqueness check on {label}")
+        failed = total_rows - distinct_count
+        return self._result(rule, RuleType.UNIQUENESS, label, total_rows, failed, f"Uniqueness check on {label}")
 
     def _check_referential_integrity(
-        self, rule: dict, df: DataFrame, reference_df: DataFrame | None
+        self, rule: dict, df: DataFrame, reference_df: DataFrame | None, total_rows: int
     ) -> ValidationResult:
-        self._require_pyspark()
         column = rule["column"]
         allowed_values = rule.get("allowed_values")
         if allowed_values is not None:
-            total = df.count()
             failed = df.filter(~F.col(column).isin(allowed_values)).count()
             return self._result(
                 rule,
                 RuleType.REFERENTIAL,
                 column,
-                total,
+                total_rows,
                 failed,
                 f"Allowed values check on {column}",
             )
@@ -281,8 +369,6 @@ class RegulatoryDataValidator:
             raise ValueError("reference_df is required for referential integrity checks")
 
         reference_column = rule.get("reference_column", column)
-        total = df.count()
-
         failed = (
             df.join(
                 reference_df.select(F.col(reference_column).alias("_ref_key")).distinct(),
@@ -297,15 +383,14 @@ class RegulatoryDataValidator:
             rule,
             RuleType.REFERENTIAL,
             column,
-            total,
+            total_rows,
             failed,
             f"Referential integrity check on {column}",
         )
 
     def _check_cross_dataset_reconciliation(
-        self, rule: dict, df: DataFrame, reference_df: DataFrame | None
+        self, rule: dict, df: DataFrame, reference_df: DataFrame | None, _: int
     ) -> ValidationResult:
-        self._require_pyspark()
         if reference_df is None:
             raise ValueError("reference_df is required for reconciliation checks")
 
@@ -330,29 +415,29 @@ class RegulatoryDataValidator:
             regulatory_ref=rule.get("regulatory_ref", ""),
         )
 
-    def _check_regulatory_format(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
-        self._require_pyspark()
+    def _check_regulatory_format(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+    ) -> ValidationResult:
         column = rule["column"]
         pattern = rule.get("pattern", rule.get("regex_pattern"))
         if pattern is None:
             raise ValueError("regulatory_format rule requires 'pattern' or 'regex_pattern'")
-        total = df.count()
         failed = df.filter(~F.col(column).rlike(pattern)).count()
-        return self._result(rule, RuleType.REGULATORY_FORMAT, column, total, failed, f"Format check on {column}")
+        return self._result(rule, RuleType.REGULATORY_FORMAT, column, total_rows, failed, f"Format check on {column}")
 
-    def _check_timeliness(self, rule: dict, df: DataFrame, _: DataFrame | None) -> ValidationResult:
-        self._require_pyspark()
+    def _check_timeliness(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+    ) -> ValidationResult:
         column = rule["column"]
         max_delay_days = rule.get("max_delay_days")
         max_lag_minutes = rule.get("max_lag_minutes")
-        total = df.count()
         if max_lag_minutes is not None:
             cutoff_expr = F.expr(f"current_timestamp() - INTERVAL {int(max_lag_minutes)} MINUTES")
             failed = df.filter(F.col(column) < cutoff_expr).count()
         else:
             max_delay_days = int(max_delay_days or 0)
             failed = df.filter(F.datediff(F.current_date(), F.to_date(F.col(column))) > max_delay_days).count()
-        return self._result(rule, RuleType.TIMELINESS, column, total, failed, f"Timeliness check on {column}")
+        return self._result(rule, RuleType.TIMELINESS, column, total_rows, failed, f"Timeliness check on {column}")
 
     def _result(
         self,
@@ -377,8 +462,17 @@ class RegulatoryDataValidator:
             regulatory_ref=rule.get("regulatory_ref", ""),
         )
 
-    def _hash_dataframe(self, df: DataFrame) -> str:
-        return hashlib.sha256(str(df.schema).encode("utf-8")).hexdigest()
+    def _fingerprint_dataframe(self, df: DataFrame, total_rows: int) -> str:
+        sample_rows = df.limit(25).toJSON().collect()
+        raw = json.dumps(
+            {
+                "schema": str(df.schema),
+                "row_count": total_rows,
+                "sample_rows": sample_rows,
+            },
+            sort_keys=True,
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def _generate_bundle_id(self, scope: str, reporting_date: str) -> str:
         raw = f"{scope}|{reporting_date}|{datetime.now(timezone.utc).isoformat()}"

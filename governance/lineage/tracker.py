@@ -40,7 +40,7 @@ class DatasetFacet:
     schema_version: str = "1.0"
     record_count:  int  = 0
     byte_size:     int  = 0
-    dataset_hash:  str  = ""      # SHA-256 — tamper evidence
+    dataset_hash:  str  = ""      # Lightweight fingerprint for demo traceability
 
 
 @dataclass
@@ -139,12 +139,13 @@ class LineageTracker:
         self.output_dir       = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.run_id:     str = str(uuid.uuid4())
+        self.run_id:     str = ""
         self._inputs:    list[DatasetFacet]          = []
         self._outputs:   list[DatasetFacet]          = []
         self._transforms: list[TransformationFacet]  = []
         self._events:    list[LineageEvent]          = []
         self._active:    bool                        = False
+        self._last_bundle_path: str | None           = None
 
     # ------------------------------------------------------------------
     # Run Lifecycle
@@ -152,10 +153,13 @@ class LineageTracker:
 
     def start_run(self) -> str:
         """Begin a new lineage run. Returns the run_id."""
+        self.run_id     = str(uuid.uuid4())
         self._active    = True
         self._inputs    = []
         self._outputs   = []
         self._transforms = []
+        self._events    = []
+        self._last_bundle_path = None
 
         event = self._create_event("START")
         self._events.append(event)
@@ -165,11 +169,16 @@ class LineageTracker:
 
     def complete_run(self) -> str:
         """Mark the run as successfully completed. Returns path to audit bundle."""
+        if not self._active:
+            if self._last_bundle_path is not None:
+                return self._last_bundle_path
+            raise RuntimeError("No active lineage run to complete.")
         self._active = False
         event = self._create_event("COMPLETE")
         self._events.append(event)
         self._persist_event(event)
         bundle_path = self._write_audit_bundle()
+        self._last_bundle_path = bundle_path
         logger.info(
             "Lineage run COMPLETE | run_id=%s | audit_bundle=%s",
             self.run_id, bundle_path
@@ -178,6 +187,8 @@ class LineageTracker:
 
     def fail_run(self, error: str = "") -> None:
         """Mark the run as failed."""
+        if not self._active:
+            return
         self._active = False
         event = self._create_event("FAIL", additional_facets={"error": error})
         self._events.append(event)
@@ -198,6 +209,7 @@ class LineageTracker:
         schema_version: str = "1.0",
     ) -> None:
         """Record a source dataset consumed by this pipeline run."""
+        self._ensure_active()
         facet = DatasetFacet(
             name=name,
             namespace=namespace,
@@ -205,7 +217,7 @@ class LineageTracker:
             schema_version=schema_version,
             record_count=record_count,
             byte_size=byte_size,
-            dataset_hash=self._hash_dataset(name, namespace, record_count),
+            dataset_hash=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
         )
         self._inputs.append(facet)
         logger.debug("Input recorded: %s from %s (%d records)", name, source_system, record_count)
@@ -220,6 +232,7 @@ class LineageTracker:
         schema_version: str = "1.0",
     ) -> None:
         """Record a dataset produced by this pipeline run."""
+        self._ensure_active()
         facet = DatasetFacet(
             name=name,
             namespace=namespace,
@@ -227,7 +240,7 @@ class LineageTracker:
             schema_version=schema_version,
             record_count=record_count,
             byte_size=byte_size,
-            dataset_hash=self._hash_dataset(name, namespace, record_count),
+            dataset_hash=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
         )
         self._outputs.append(facet)
         logger.debug("Output recorded: %s (%d records)", name, record_count)
@@ -240,6 +253,7 @@ class LineageTracker:
         spark_plan:     str = "",
     ) -> str:
         """Record a transformation step. Returns the transform_id."""
+        self._ensure_active()
         transform_id = str(uuid.uuid4())[:8].upper()
         facet = TransformationFacet(
             transform_id=transform_id,
@@ -260,7 +274,7 @@ class LineageTracker:
         """
         Write a complete, machine-readable audit bundle covering the full run.
         The bundle documents every input, transformation, and output with
-        tamper-evident hashes — satisfying FDTA interoperability requirements.
+        lightweight fingerprints and run evidence.
         """
         bundle = {
             "bundle_type":       "LINEAGE_AUDIT",
@@ -313,6 +327,10 @@ class LineageTracker:
         with open(out, "w") as fh:
             json.dump(event.to_openlineage_dict(), fh, indent=2)
 
+    def _ensure_active(self) -> None:
+        if not self._active:
+            raise RuntimeError("Lineage run is not active. Call start_run() before recording artifacts.")
+
     def _hash_lineage_graph(self) -> str:
         raw = json.dumps(
             {
@@ -325,6 +343,12 @@ class LineageTracker:
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @staticmethod
-    def _hash_dataset(name: str, namespace: str, record_count: int) -> str:
-        raw = f"{name}|{namespace}|{record_count}"
+    def _dataset_fingerprint(
+        name: str,
+        namespace: str,
+        record_count: int,
+        byte_size: int,
+        schema_version: str,
+    ) -> str:
+        raw = f"{name}|{namespace}|{record_count}|{byte_size}|{schema_version}"
         return hashlib.sha256(raw.encode()).hexdigest()[:16]

@@ -22,6 +22,7 @@ from governance.data_quality.validators import (
     ValidationResult,
     AuditBundle,
     RuleLoader,
+    ContractValidationError,
     Severity,
     RuleType,
 )
@@ -137,6 +138,34 @@ class TestRuleLoader:
         assert len(rules) > 0
         assert any(rule["id"] == "UCR_001" for rule in rules)
 
+    def test_invalid_rule_type_raises_contract_error(self, tmp_path):
+        contract_path = tmp_path / "invalid_type.yaml"
+        contract_path.write_text(
+            "rules:\n"
+            "  - id: BAD-001\n"
+            "    type: nope\n"
+            "    column: value\n"
+            "    severity: HIGH\n"
+        )
+
+        with pytest.raises(ContractValidationError):
+            RuleLoader(contract_path).load()
+
+    def test_invalid_range_raises_contract_error(self, tmp_path):
+        contract_path = tmp_path / "invalid_range.yaml"
+        contract_path.write_text(
+            "rules:\n"
+            "  - id: BAD-002\n"
+            "    type: range\n"
+            "    column: value\n"
+            "    severity: HIGH\n"
+            "    min: 10\n"
+            "    max: 5\n"
+        )
+
+        with pytest.raises(ContractValidationError):
+            RuleLoader(contract_path).load()
+
 
 # ---------------------------------------------------------------------------
 # AuditBundle Tests
@@ -222,6 +251,17 @@ class TestDriftDetection:
         assert result.drifted is True
         assert result.severity in ("MEDIUM", "CRITICAL")
 
+    def test_psi_handles_constant_baseline(self):
+        from governance.model_governance.drift_detector import PSICalculator
+
+        calc = PSICalculator()
+        baseline = pd.Series([600.0] * 100)
+        current = pd.Series([600.0] * 100)
+
+        result = calc.calculate(baseline, current, "fico_score", "TEST_MODEL")
+        assert result.drifted is False
+        assert "skipped" in result.interpretation.lower()
+
     def test_fairness_air_passes_above_threshold(self):
         from governance.model_governance.drift_detector import FairnessChecker
 
@@ -257,6 +297,30 @@ class TestDriftDetection:
         )
         assert len(results) == 1
         assert results[0].passed is False   # AIR < 0.80
+
+    def test_fairness_missing_reference_group_fails_cleanly(self):
+        from governance.model_governance.drift_detector import FairnessChecker
+
+        checker = FairnessChecker()
+        with pytest.raises(ValueError):
+            checker.check_selection_rate(
+                y_pred=pd.Series([1, 0, 1]),
+                sensitive_feature=pd.Series(["A", "A", "B"]),
+                reference_group="REF",
+                model_id="MODEL",
+            )
+
+    def test_fairness_zero_reference_rate_fails_cleanly(self):
+        from governance.model_governance.drift_detector import FairnessChecker
+
+        checker = FairnessChecker()
+        with pytest.raises(ValueError):
+            checker.check_selection_rate(
+                y_pred=pd.Series([0, 0, 1, 1]),
+                sensitive_feature=pd.Series(["REF", "REF", "B", "B"]),
+                reference_group="REF",
+                model_id="MODEL",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -312,3 +376,19 @@ class TestLineageTracker:
         t2 = make_tracker()
 
         assert t1._hash_lineage_graph() == t2._hash_lineage_graph()
+
+    def test_recording_requires_active_run(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        tracker = LineageTracker("job", "ns", "scope", tmp_path)
+        with pytest.raises(RuntimeError):
+            tracker.record_input("ds", "s3://x/", "SYS", record_count=10)
+
+    def test_start_run_generates_new_run_id_each_time(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        tracker = LineageTracker("job", "ns", "scope", tmp_path)
+        first = tracker.start_run()
+        tracker.complete_run()
+        second = tracker.start_run()
+        assert first != second
