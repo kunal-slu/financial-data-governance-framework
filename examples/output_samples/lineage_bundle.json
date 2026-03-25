@@ -1,10 +1,10 @@
 {
   "bundle_type": "LINEAGE_AUDIT",
-  "run_id": "RUN-DEMO-001",
+  "run_id": "c078082a-bab8-4841-bad4-41879214bca4",
   "job_name": "fdgf_lightweight_demo",
   "job_namespace": "fdgf.examples",
-  "regulatory_scope": "Illustrative regulatory control workflow",
-  "generated_at": "2026-03-31T12:00:00+00:00",
+  "regulatory_scope": "Illustrative financial data workflow",
+  "generated_at": "2026-03-25T03:47:57.720999+00:00",
   "framework_version": "1.0.0",
   "total_events": 2,
   "inputs": [
@@ -14,8 +14,8 @@
       "source_system": "DEMO_SOURCE",
       "schema_version": "1.0",
       "record_count": 4,
-      "byte_size": 0,
-      "dataset_hash": "08c3f47f9e5af2dc"
+      "byte_size": 785,
+      "dataset_fingerprint": "58f1f19f7b5a8f9bdf92d2657369ba545126e3d8d5666783aa0e9af7d94906c8"
     }
   ],
   "outputs": [
@@ -26,17 +26,95 @@
       "schema_version": "1.0",
       "record_count": 1,
       "byte_size": 0,
-      "dataset_hash": "3ead684de9ae33aa"
+      "dataset_fingerprint": "9470e40dd9184c5f"
     }
   ],
   "transformations": [
     {
-      "transform_id": "TRANSFORM-DEMO-001",
+      "transform_id": "1A376873",
       "transform_name": "exposure_rollup",
       "transform_type": "AGGREGATE",
       "sql_or_code": "sum(exposure_amount) by as_of_date",
       "spark_plan": ""
     }
   ],
-  "lineage_hash": "ae39353e346f32a7026e3bdf17eadfb001fc3d326fc62c28816f23779c3c0521"
+  "events": [
+    {
+      "eventType": "START",
+      "eventTime": "2026-03-25T03:47:57.720587+00:00",
+      "run": {
+        "runId": "c078082a-bab8-4841-bad4-41879214bca4",
+        "facets": {
+          "regulatoryScope": {
+            "scope": "Illustrative financial data workflow"
+          }
+        }
+      },
+      "job": {
+        "namespace": "fdgf.examples",
+        "name": "fdgf_lightweight_demo",
+        "facets": {
+          "producer": "fdgf/lineage-tracker/1.0.0"
+        }
+      },
+      "inputs": [],
+      "outputs": [],
+      "transformations": [],
+      "producer": "fdgf/lineage-tracker/1.0.0",
+      "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
+    },
+    {
+      "eventType": "COMPLETE",
+      "eventTime": "2026-03-25T03:47:57.720856+00:00",
+      "run": {
+        "runId": "c078082a-bab8-4841-bad4-41879214bca4",
+        "facets": {
+          "regulatoryScope": {
+            "scope": "Illustrative financial data workflow"
+          }
+        }
+      },
+      "job": {
+        "namespace": "fdgf.examples",
+        "name": "fdgf_lightweight_demo",
+        "facets": {
+          "producer": "fdgf/lineage-tracker/1.0.0"
+        }
+      },
+      "inputs": [
+        {
+          "name": "basel3_sample.csv",
+          "namespace": "local://sample_data",
+          "source_system": "DEMO_SOURCE",
+          "schema_version": "1.0",
+          "record_count": 4,
+          "byte_size": 785,
+          "dataset_fingerprint": "58f1f19f7b5a8f9bdf92d2657369ba545126e3d8d5666783aa0e9af7d94906c8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "daily_rollup",
+          "namespace": "local://demo_output",
+          "source_system": "FDGF_DEMO",
+          "schema_version": "1.0",
+          "record_count": 1,
+          "byte_size": 0,
+          "dataset_fingerprint": "9470e40dd9184c5f"
+        }
+      ],
+      "transformations": [
+        {
+          "transform_id": "1A376873",
+          "transform_name": "exposure_rollup",
+          "transform_type": "AGGREGATE",
+          "sql_or_code": "sum(exposure_amount) by as_of_date",
+          "spark_plan": ""
+        }
+      ],
+      "producer": "fdgf/lineage-tracker/1.0.0",
+      "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
+    }
+  ],
+  "lineage_hash": "7b8594f15235f307be70077cfe3306e591deed768ad2d3689d41565ee1545298"
 }

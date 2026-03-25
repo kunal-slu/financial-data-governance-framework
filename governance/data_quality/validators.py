@@ -55,6 +55,8 @@ class RuleType(str, Enum):
     CROSS_DATASET = "cross_dataset_reconciliation"
     REGULATORY_FORMAT = "regulatory_format"
     TIMELINESS = "timeliness"
+    ROW_CONDITION = "row_condition"
+    SCHEMA_MATCH = "schema_match"
 
 
 @dataclass
@@ -80,7 +82,7 @@ class AuditBundle:
     bundle_id: str
     reporting_date: str
     regulatory_scope: str
-    dataset_hash: str
+    dataset_fingerprint: str
     total_rules: int
     passed_rules: int
     failed_rules: int
@@ -96,8 +98,12 @@ class AuditBundle:
         return round(self.passed_rules / self.total_rules * 100, 2)
 
     @property
-    def submission_ready(self) -> bool:
+    def critical_checks_passed(self) -> bool:
         return self.critical_failures == 0
+
+    @property
+    def submission_ready(self) -> bool:
+        return self.critical_checks_passed
 
     def to_json(self, path: str | Path) -> None:
         path = Path(path)
@@ -107,7 +113,7 @@ class AuditBundle:
                 {
                     **asdict(self),
                     "pass_rate_pct": self.pass_rate_pct,
-                    "submission_ready": self.submission_ready,
+                    "critical_checks_passed": self.critical_checks_passed,
                 },
                 fh,
                 indent=2,
@@ -211,6 +217,26 @@ class RuleLoader:
                     f"Rule {rule_id} requires 'max_delay_days' or 'max_lag_minutes'."
                 )
 
+        if rule_type == RuleType.ROW_CONDITION:
+            if rule.get("condition_sql") is None:
+                raise ContractValidationError(f"Rule {rule_id} requires 'condition_sql'.")
+
+        if rule_type == RuleType.SCHEMA_MATCH:
+            required_columns = rule.get("required_columns")
+            if not isinstance(required_columns, dict) or not required_columns:
+                raise ContractValidationError(
+                    f"Rule {rule_id} requires a non-empty 'required_columns' mapping."
+                )
+            for column_name, expected_type in required_columns.items():
+                if not isinstance(column_name, str) or not column_name:
+                    raise ContractValidationError(
+                        f"Rule {rule_id} has an invalid required_columns entry '{column_name}'."
+                    )
+                if expected_type is not None and not isinstance(expected_type, str):
+                    raise ContractValidationError(
+                        f"Rule {rule_id} column '{column_name}' must map to a Spark type string or null."
+                    )
+
         return rule
 
 
@@ -236,13 +262,20 @@ class RegulatoryDataValidator:
         rules = self.rule_loader.rules
         persisted_df = df.persist()
         total_rows = persisted_df.count()
-        dataset_hash = self._fingerprint_dataframe(persisted_df, total_rows)
+        dataset_fingerprint = self._fingerprint_dataframe(persisted_df, total_rows)
 
         try:
             for rule in rules:
                 rule_type = RuleType(rule["type"])
                 try:
-                    result = self._dispatch(rule, rule_type, persisted_df, reference_df, total_rows)
+                    result = self._dispatch(
+                        rule,
+                        rule_type,
+                        persisted_df,
+                        reference_df,
+                        total_rows,
+                        reporting_date,
+                    )
                     self.results.append(result)
                 except Exception as exc:
                     logger.error("Rule %s failed with exception: %s", rule.get("id"), exc)
@@ -271,7 +304,7 @@ class RegulatoryDataValidator:
             bundle_id=self._generate_bundle_id(scope, reporting_date),
             reporting_date=reporting_date,
             regulatory_scope=scope,
-            dataset_hash=dataset_hash,
+            dataset_fingerprint=dataset_fingerprint,
             total_rules=len(self.results),
             passed_rules=len(passed),
             failed_rules=len(failed),
@@ -296,6 +329,7 @@ class RegulatoryDataValidator:
         df: DataFrame,
         reference_df: DataFrame | None,
         total_rows: int,
+        reporting_date: str,
     ) -> ValidationResult:
         dispatch_map = {
             RuleType.NULLABILITY: self._check_nullability,
@@ -305,18 +339,20 @@ class RegulatoryDataValidator:
             RuleType.CROSS_DATASET: self._check_cross_dataset_reconciliation,
             RuleType.REGULATORY_FORMAT: self._check_regulatory_format,
             RuleType.TIMELINESS: self._check_timeliness,
+            RuleType.ROW_CONDITION: self._check_row_condition,
+            RuleType.SCHEMA_MATCH: self._check_schema_match,
         }
-        return dispatch_map[rule_type](rule, df, reference_df, total_rows)
+        return dispatch_map[rule_type](rule, df, reference_df, total_rows, reporting_date)
 
     def _check_nullability(
-        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, __: str
     ) -> ValidationResult:
         column = rule["column"]
         failed = df.filter(F.col(column).isNull()).count()
         return self._result(rule, RuleType.NULLABILITY, column, total_rows, failed, f"Null check on {column}")
 
     def _check_range(
-        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, __: str
     ) -> ValidationResult:
         column = rule["column"]
         minimum = rule.get("min_value", rule.get("min"))
@@ -333,7 +369,7 @@ class RegulatoryDataValidator:
         return self._result(rule, RuleType.RANGE, column, total_rows, failed, f"Range check on {column}")
 
     def _check_uniqueness(
-        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, __: str
     ) -> ValidationResult:
         columns = rule.get("columns")
         column = rule.get("column")
@@ -350,7 +386,7 @@ class RegulatoryDataValidator:
         return self._result(rule, RuleType.UNIQUENESS, label, total_rows, failed, f"Uniqueness check on {label}")
 
     def _check_referential_integrity(
-        self, rule: dict, df: DataFrame, reference_df: DataFrame | None, total_rows: int
+        self, rule: dict, df: DataFrame, reference_df: DataFrame | None, total_rows: int, __: str
     ) -> ValidationResult:
         column = rule["column"]
         allowed_values = rule.get("allowed_values")
@@ -389,7 +425,7 @@ class RegulatoryDataValidator:
         )
 
     def _check_cross_dataset_reconciliation(
-        self, rule: dict, df: DataFrame, reference_df: DataFrame | None, _: int
+        self, rule: dict, df: DataFrame, reference_df: DataFrame | None, _: int, __: str
     ) -> ValidationResult:
         if reference_df is None:
             raise ValueError("reference_df is required for reconciliation checks")
@@ -416,7 +452,7 @@ class RegulatoryDataValidator:
         )
 
     def _check_regulatory_format(
-        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, __: str
     ) -> ValidationResult:
         column = rule["column"]
         pattern = rule.get("pattern", rule.get("regex_pattern"))
@@ -426,7 +462,7 @@ class RegulatoryDataValidator:
         return self._result(rule, RuleType.REGULATORY_FORMAT, column, total_rows, failed, f"Format check on {column}")
 
     def _check_timeliness(
-        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, __: str
     ) -> ValidationResult:
         column = rule["column"]
         max_delay_days = rule.get("max_delay_days")
@@ -438,6 +474,42 @@ class RegulatoryDataValidator:
             max_delay_days = int(max_delay_days or 0)
             failed = df.filter(F.datediff(F.current_date(), F.to_date(F.col(column))) > max_delay_days).count()
         return self._result(rule, RuleType.TIMELINESS, column, total_rows, failed, f"Timeliness check on {column}")
+
+    def _check_row_condition(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, reporting_date: str
+    ) -> ValidationResult:
+        condition_sql = self._render_rule_template(rule["condition_sql"], reporting_date)
+        label = rule.get("description", rule["id"])
+        failed = df.filter(~F.coalesce(F.expr(condition_sql).cast("boolean"), F.lit(False))).count()
+        return self._result(rule, RuleType.ROW_CONDITION, label, total_rows, failed, f"Row condition check: {condition_sql}")
+
+    def _check_schema_match(
+        self, rule: dict, df: DataFrame, _: DataFrame | None, __: int, ___: str
+    ) -> ValidationResult:
+        schema_fields = {field.name: field.dataType.simpleString() for field in df.schema.fields}
+        required_columns = rule["required_columns"]
+        failures: list[str] = []
+        for column, expected_type in required_columns.items():
+            if column not in schema_fields:
+                failures.append(f"missing:{column}")
+                continue
+            if expected_type is not None and schema_fields[column] != str(expected_type):
+                failures.append(f"type:{column} expected {expected_type} got {schema_fields[column]}")
+
+        checked = len(required_columns)
+        failed = len(failures)
+        return ValidationResult(
+            rule_id=rule["id"],
+            rule_type=RuleType.SCHEMA_MATCH,
+            column="schema",
+            severity=Severity(rule.get("severity", "HIGH")),
+            passed=(failed == 0),
+            records_checked=checked,
+            records_failed=failed,
+            failure_rate_pct=round((failed / checked * 100), 2) if checked else 0.0,
+            details="; ".join(failures) if failures else "Schema matches expected columns and types.",
+            regulatory_ref=rule.get("regulatory_ref", ""),
+        )
 
     def _result(
         self,
@@ -478,11 +550,15 @@ class RegulatoryDataValidator:
         raw = f"{scope}|{reporting_date}|{datetime.now(timezone.utc).isoformat()}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
+    @staticmethod
+    def _render_rule_template(value: str, reporting_date: str) -> str:
+        return value.replace("{{reporting_date}}", reporting_date)
+
     def _log_summary(self, bundle: AuditBundle) -> None:
         logger.info(
-            "Validation complete: %s | pass_rate=%s%% | critical_failures=%s | submission_ready=%s",
+            "Validation complete: %s | pass_rate=%s%% | critical_failures=%s | critical_checks_passed=%s",
             bundle.bundle_id,
             bundle.pass_rate_pct,
             bundle.critical_failures,
-            bundle.submission_ready,
+            bundle.critical_checks_passed,
         )

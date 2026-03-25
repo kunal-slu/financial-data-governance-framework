@@ -240,3 +240,44 @@ rules:
     max_lag_minutes: 1440
     description: "Records must have been updated within the past 24 hours on reporting days."
     regulatory_ref: "BCBS 239 Principle 5 — Timeliness"
+
+  # ----------------------------------------------------------
+  # SCHEMA-LEVEL RULES
+  # ----------------------------------------------------------
+
+  - id: "BAS-SCHEMA-001"
+    type: schema_match
+    severity: CRITICAL
+    required_columns:
+      counterparty_id: string
+      facility_id: string
+      exposure_amount: double
+      risk_weight_pct: double
+      reporting_date: string
+    description: "Core Basel III fields must be present with expected Spark types."
+    regulatory_ref: "BCBS 239 Principle 2 — Data Architecture"
+
+  # ----------------------------------------------------------
+  # CROSS-FIELD / ROW-CONDITION RULES
+  # ----------------------------------------------------------
+
+  - id: "BAS-XFIELD-001"
+    type: row_condition
+    severity: HIGH
+    condition_sql: "CASE WHEN approach_type IN ('FIRB', 'AIRB') THEN pd_estimate IS NOT NULL ELSE TRUE END"
+    description: "PD estimate is required for IRB approach records."
+    regulatory_ref: "Basel III IRB — PD Estimation Inputs"
+
+  - id: "BAS-XFIELD-002"
+    type: row_condition
+    severity: HIGH
+    condition_sql: "CASE WHEN approach_type = 'SA' THEN pd_estimate IS NULL ELSE TRUE END"
+    description: "PD estimate should not be populated for standardized approach records."
+    regulatory_ref: "Basel III Standardized Approach — Input Scope"
+
+  - id: "BAS-XFIELD-003"
+    type: row_condition
+    severity: HIGH
+    condition_sql: "reporting_date = '{{reporting_date}}'"
+    description: "Reporting date must match the target bundle reporting date for this reference contract."
+    regulatory_ref: "FDTA — Reporting Date Consistency"

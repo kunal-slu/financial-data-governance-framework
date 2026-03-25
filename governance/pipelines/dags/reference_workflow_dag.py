@@ -58,7 +58,7 @@ def run_control_checks(**context) -> None:
         f"s3://fdgf-prod/audit/validation/capital_controls_{reporting_date}.json"
     )
 
-    if not bundle.submission_ready:
+    if not bundle.critical_checks_passed:
         raise ValueError(
             f"Control validation failed: {bundle.critical_failures} critical failures. "
             f"Pass rate: {bundle.pass_rate_pct}%."

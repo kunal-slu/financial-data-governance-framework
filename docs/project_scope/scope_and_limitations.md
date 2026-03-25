@@ -16,7 +16,7 @@
 - end-to-end production deployment tooling
 - institution-specific system integrations
 - legal conclusions about compliance sufficiency
-- case-specific filing and packaging materials
+- private process-specific packaging materials
 
 ## Reading The Repository Correctly
 

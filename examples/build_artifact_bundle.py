@@ -38,7 +38,7 @@ def main() -> None:
     summary = ComplianceSummaryBuilder()
     payload = {
         "artifact_type": "artifact_bundle_summary",
-        "lineage_bundle": str(lineage_path),
+        "lineage_bundle": str(Path(lineage_path).relative_to(ROOT)),
         "psi_metric": psi.value,
         "psi_drifted": psi.drifted,
         "project_positioning": (

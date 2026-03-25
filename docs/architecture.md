@@ -27,8 +27,8 @@ flowchart LR
    The lineage tracker records inputs, outputs, transformations, and run metadata.
 4. Model-governance checks
    Drift and fairness utilities provide lightweight monitoring evidence for model-driven workflows.
-5. Workflow orchestration
-   Reference pipelines show where validation and lineage hooks fit into scheduled data processing.
+
+Reference workflows show where these four layers fit into scheduled data processing, but workflow orchestration is not treated as a separate framework layer in this repository.
 
 ## Core Components
 

@@ -6,8 +6,8 @@ OpenLineage-style. Aligned with common lineage and traceability control themes
 used in BCBS 239-style and machine-readable reporting workflows.
 
 Every dataset transformation, join, aggregation, and output handoff is recorded
-with tamper-evident hashes and generated run artifacts, replacing manual
-documentation with continuous evidence generation.
+with generated fingerprints and run artifacts, replacing manual documentation
+with continuous evidence generation.
 
 Author: Kunal Kumar Singh
 License: Apache 2.0
@@ -40,7 +40,7 @@ class DatasetFacet:
     schema_version: str = "1.0"
     record_count:  int  = 0
     byte_size:     int  = 0
-    dataset_hash:  str  = ""      # Lightweight fingerprint for demo traceability
+    dataset_fingerprint: str = ""  # Content hash for local files; deterministic fingerprint otherwise
 
 
 @dataclass
@@ -108,7 +108,7 @@ class LineageTracker:
     Records end-to-end data lineage for regulatory reporting pipelines.
 
     Captures every transformation from raw source data through to the final
-    reporting output, producing a tamper-evident audit trail that can support
+    reporting output, producing a reproducible artifact trail that can support
     traceability and review workflows.
 
     Usage
@@ -216,8 +216,8 @@ class LineageTracker:
             source_system=source_system,
             schema_version=schema_version,
             record_count=record_count,
-            byte_size=byte_size,
-            dataset_hash=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
+            byte_size=byte_size or self._local_file_size(name, namespace),
+            dataset_fingerprint=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
         )
         self._inputs.append(facet)
         logger.debug("Input recorded: %s from %s (%d records)", name, source_system, record_count)
@@ -239,8 +239,8 @@ class LineageTracker:
             source_system=source_system,
             schema_version=schema_version,
             record_count=record_count,
-            byte_size=byte_size,
-            dataset_hash=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
+            byte_size=byte_size or self._local_file_size(name, namespace),
+            dataset_fingerprint=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
         )
         self._outputs.append(facet)
         logger.debug("Output recorded: %s (%d records)", name, record_count)
@@ -350,5 +350,42 @@ class LineageTracker:
         byte_size: int,
         schema_version: str,
     ) -> str:
+        local_path = LineageTracker._resolve_local_path(name, namespace)
+        if local_path is not None and local_path.is_file():
+            return LineageTracker._hash_file_contents(local_path)
         raw = f"{name}|{namespace}|{record_count}|{byte_size}|{schema_version}"
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+    @staticmethod
+    def _resolve_local_path(name: str, namespace: str) -> Path | None:
+        if namespace.startswith("local://"):
+            base = Path(namespace.removeprefix("local://"))
+            candidate = base / name
+            if candidate.exists():
+                return candidate
+            if base.is_file():
+                return base
+            return None
+
+        base = Path(namespace)
+        if base.is_file():
+            return base
+        candidate = base / name
+        if candidate.exists():
+            return candidate
+        return None
+
+    @staticmethod
+    def _hash_file_contents(path: Path) -> str:
+        hasher = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    @staticmethod
+    def _local_file_size(name: str, namespace: str) -> int:
+        local_path = LineageTracker._resolve_local_path(name, namespace)
+        if local_path is not None and local_path.is_file():
+            return local_path.stat().st_size
+        return 0

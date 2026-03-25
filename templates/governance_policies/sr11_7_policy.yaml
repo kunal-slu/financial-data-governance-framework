@@ -143,25 +143,25 @@ fairness_requirements:
     - monitoring_frequency: QUARTERLY
 
 # ----------------------------------------------------------
-# Change Management and Approval Workflow
+# Change Management and Review Workflow
 # (SR 11-7: "Governance, Policies, and Controls")
 # ----------------------------------------------------------
 change_management:
   model_change_types:
     MINOR:
       description: "Parameter recalibration, data refresh — no structural change"
-      approvals_required: ["Model Owner", "Validation Lead"]
+      review_roles: ["Model Owner", "Validation Lead"]
       sla_days: 5
 
     MODERATE:
       description: "Variable addition/removal, threshold change"
-      approvals_required: ["Model Owner", "Validation Lead", "Model Risk Manager"]
+      review_roles: ["Model Owner", "Validation Lead", "Model Risk Manager"]
       sla_days: 15
       requires_validation: true
 
     MAJOR:
       description: "Methodology change, full redevelopment"
-      approvals_required: ["Model Owner", "Chief Risk Officer", "Model Risk Committee"]
+      review_roles: ["Model Owner", "Chief Risk Officer", "Model Risk Committee"]
       sla_days: 30
       requires_full_validation: true
       requires_parallel_run: true
@@ -169,7 +169,7 @@ change_management:
   version_control:
     required: true
     system: "Git"                  # All model code version-controlled
-    immutable_artifacts: true      # Trained model artifacts preserved with tamper-evident controls
+    artifact_versioning: true      # Trained model artifacts retained with version history
     audit_log_retention_years: 7   # Consistent with SOX retention requirements
 
 # ----------------------------------------------------------
@@ -183,13 +183,13 @@ audit_requirements:
     - model_performance_metrics
     - drift_detection_results
     - fairness_assessment_results
-    - approvals_and_sign_offs
+    - review_notes_and_sign_offs
 
   retention:
     audit_bundles_years: 7
     model_artifacts_years: 7
     lineage_records_years: 7
-    storage_mode: "WORM"          # Write Once Read Many — tamper-evident
+    storage_mode: "versioned"     # Versioned retention for reproducible review
 
   machine_readable_format: true   # FDTA compliance
   openlineage_style: true         # Interoperability-oriented lineage structure

@@ -23,4 +23,4 @@ outputs:
   required_artifacts:
     - monitoring_summary
     - exception_log
-    - approval_status
+    - review_status

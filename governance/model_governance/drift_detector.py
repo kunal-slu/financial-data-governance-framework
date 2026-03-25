@@ -24,6 +24,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from governance.model_governance.explainability import (
+    ExplainabilityReport,
+    default_explainability_report,
+)
+
 logger = logging.getLogger(__name__)
 
 # Optional heavy dependencies — graceful degradation if not installed
@@ -87,7 +92,7 @@ class ModelGovernanceReport:
     monitoring_period: str
     drift_results:    list[DriftResult]
     fairness_results: list[FairnessResult]
-    explanations:     dict[str, Any]
+    explainability:   ExplainabilityReport
     ready_for_review: bool
     override_reason:  str = ""
     generated_at:     str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -448,11 +453,8 @@ class ModelGovernanceMonitor:
                 model_id=model_id,
             )
 
-        # 4. Placeholder explanation status for demo outputs
-        explanations = {
-            "status": "not_implemented",
-            "note": "Explainability reporting is outside the scope of the current demo implementation.",
-        }
+        # 4. Explicit explainability status for demo outputs
+        explainability = default_explainability_report()
 
         critical_drift   = any(r.drifted and r.severity == "CRITICAL" for r in drift_results)
         fairness_pass    = all(r.passed for r in fairness_results)
@@ -466,7 +468,7 @@ class ModelGovernanceMonitor:
             monitoring_period = monitoring_period,
             drift_results     = drift_results,
             fairness_results  = fairness_results,
-            explanations      = explanations,
+            explainability    = explainability,
             ready_for_review  = ready_for_review,
         )
 

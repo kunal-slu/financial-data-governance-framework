@@ -3,14 +3,25 @@
 
 # Financial Data Governance Framework (FDGF)
 
-FDGF is a public technical framework for regulator-aligned financial data governance. It includes working examples of data-quality validation, lineage capture, model-monitoring checks, and audit-oriented pipeline components that can be adapted across regulated financial institutions, with the most concrete examples centered on U.S. regulatory reporting and risk-governance workflows.
+FDGF is a governance-as-code reference implementation for regulated financial data workflows. It includes working examples of data-quality validation, lineage capture, model-monitoring checks, and audit-oriented pipeline components, with the most concrete examples centered on U.S. regulatory reporting and risk-governance workflows.
 
 ## At A Glance
 
 - Scope: reference implementation for governance-as-code in regulated financial data workflows
 - Core themes: data quality, lineage, auditability, and model-governance monitoring
-- Primary examples: Basel III-, CCAR-, BCBS 239-, and SR 11-7-aligned control patterns
+- Primary examples: Basel III-, CCAR-, BCBS 239-, SR 11-7-, and FDTA-aligned control patterns
 - Runtime model: source-checkout framework with runnable demos, templates, schemas, and sample artifacts
+
+## Framework Layers
+
+1. Control definition
+   YAML contracts and control sets define expected fields, thresholds, and rule logic.
+2. Control execution
+   Validator modules execute rule sets and generate machine-readable result bundles.
+3. Lineage and audit artifacts
+   Lineage tracking and summary utilities produce reviewable run evidence.
+4. Model-governance support
+   Drift and fairness checks provide lightweight monitoring evidence for model-driven workflows.
 
 ## Quick Start
 
@@ -122,7 +133,6 @@ Examples in the repository are tied to familiar control domains such as:
 - The unit tests cover the validator, lineage, and monitoring components.
 - The Spark-oriented pipeline code is included as reference code, but full local execution depends on a compatible Spark and PySpark environment.
 - Domain-specific examples are included for bank reporting and model-governance use cases, while the generic templates are intended to be adapted to other regulated financial data workflows.
-- FDGF is currently intended to be used from a source checkout so that templates, schemas, sample data, examples, and documentation remain available alongside the Python modules.
 
 ## Limits
 
@@ -188,14 +198,6 @@ Generate a lineage bundle from the shipped example config:
 
 ```bash
 python3 -m governance.cli lineage --config examples/lineage_config.json
-```
-
-## Containerized Demo
-
-Build and run the demo with Docker:
-
-```bash
-docker compose up --build
 ```
 
 ## Adapting the Framework

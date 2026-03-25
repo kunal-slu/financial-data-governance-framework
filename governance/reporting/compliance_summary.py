@@ -26,7 +26,11 @@ class ComplianceSummaryBuilder:
             "passed_rules": getattr(bundle, "passed_rules", 0),
             "failed_rules": getattr(bundle, "failed_rules", 0),
             "critical_failures": getattr(bundle, "critical_failures", 0),
-            "submission_ready": getattr(bundle, "submission_ready", False),
+            "critical_checks_passed": getattr(
+                bundle,
+                "critical_checks_passed",
+                getattr(bundle, "submission_ready", False),
+            ),
             "critical_rule_ids": critical_rules,
         }
 
@@ -40,6 +44,9 @@ class ComplianceSummaryBuilder:
             "drift_findings": len([r for r in drift_results if getattr(r, "drifted", False)]),
             "fairness_findings": len([r for r in fairness_results if not getattr(r, "passed", True)]),
             "ready_for_review": getattr(report, "ready_for_review", False),
+            "explainability_status": self._extract_explainability_status(
+                getattr(report, "explainability", None)
+            ),
         }
 
     def write_json(self, payload: dict[str, Any], path: str | Path) -> Path:
@@ -63,3 +70,12 @@ class ComplianceSummaryBuilder:
         if is_dataclass(value):
             return asdict(value)
         raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+    @staticmethod
+    def _extract_explainability_status(explainability: Any) -> str:
+        status = getattr(explainability, "status", None)
+        if hasattr(status, "value"):
+            return status.value
+        if isinstance(status, str):
+            return status
+        return "unknown"

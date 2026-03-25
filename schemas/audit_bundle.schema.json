@@ -11,7 +11,7 @@
     "passed_rules",
     "failed_rules",
     "critical_failures",
-    "submission_ready"
+    "critical_checks_passed"
   ],
   "properties": {
     "bundle_id": { "type": "string" },
@@ -21,7 +21,7 @@
     "passed_rules": { "type": "integer", "minimum": 0 },
     "failed_rules": { "type": "integer", "minimum": 0 },
     "critical_failures": { "type": "integer", "minimum": 0 },
-    "submission_ready": { "type": "boolean" },
+    "critical_checks_passed": { "type": "boolean" },
     "critical_rule_ids": {
       "type": "array",
       "items": { "type": "string" }

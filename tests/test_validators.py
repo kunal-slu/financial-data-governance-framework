@@ -166,6 +166,20 @@ class TestRuleLoader:
         with pytest.raises(ContractValidationError):
             RuleLoader(contract_path).load()
 
+    def test_invalid_schema_match_type_mapping_raises_contract_error(self, tmp_path):
+        contract_path = tmp_path / "invalid_schema.yaml"
+        contract_path.write_text(
+            "rules:\n"
+            "  - id: BAD-003\n"
+            "    type: schema_match\n"
+            "    severity: HIGH\n"
+            "    required_columns:\n"
+            "      counterparty_id: 42\n"
+        )
+
+        with pytest.raises(ContractValidationError):
+            RuleLoader(contract_path).load()
+
 
 # ---------------------------------------------------------------------------
 # AuditBundle Tests
@@ -187,7 +201,7 @@ class TestAuditBundle:
             bundle_id="TEST001",
             reporting_date="2026-03-31",
             regulatory_scope="Basel III RWA",
-            dataset_hash="abc123",
+            dataset_fingerprint="abc123",
             total_rules=1,
             passed_rules=1 if critical_failures == 0 else 0,
             failed_rules=0 if critical_failures == 0 else 1,
@@ -195,13 +209,13 @@ class TestAuditBundle:
             results=results,
         )
 
-    def test_submission_ready_when_no_critical_failures(self):
+    def test_critical_checks_passed_when_no_critical_failures(self):
         bundle = self._make_bundle(critical_failures=0)
-        assert bundle.submission_ready is True
+        assert bundle.critical_checks_passed is True
 
-    def test_submission_blocked_when_critical_failures_exist(self):
+    def test_critical_checks_fail_when_critical_failures_exist(self):
         bundle = self._make_bundle(critical_failures=3)
-        assert bundle.submission_ready is False
+        assert bundle.critical_checks_passed is False
 
     def test_pass_rate_calculation(self):
         bundle = self._make_bundle(critical_failures=0)
@@ -216,7 +230,7 @@ class TestAuditBundle:
         with open(out) as f:
             data = json.load(f)
         assert data["bundle_id"] == "TEST001"
-        assert data["submission_ready"] is True
+        assert data["critical_checks_passed"] is True
         assert "pass_rate_pct" in data
 
 
@@ -392,3 +406,18 @@ class TestLineageTracker:
         tracker.complete_run()
         second = tracker.start_run()
         assert first != second
+
+    def test_local_file_hash_uses_real_file_content(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        data_dir = tmp_path / "sample_data"
+        data_dir.mkdir()
+        sample_file = data_dir / "demo.csv"
+        sample_file.write_text("id,value\n1,10\n")
+
+        tracker = LineageTracker("job", "ns", "scope", tmp_path)
+        tracker.start_run()
+        tracker.record_input("demo.csv", f"local://{data_dir}", "LOCAL", record_count=1)
+
+        expected = __import__("hashlib").sha256(sample_file.read_bytes()).hexdigest()
+        assert tracker._inputs[0].dataset_fingerprint == expected

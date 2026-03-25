@@ -7,5 +7,5 @@
 - **passed_rules**: 3
 - **failed_rules**: 1
 - **critical_failures**: 1
-- **submission_ready**: False
+- **critical_checks_passed**: False
 - **critical_rule_ids**: ['BAS-NULL-001']

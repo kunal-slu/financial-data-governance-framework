@@ -70,10 +70,10 @@ def run_data_quality_checks(**context) -> None:
 
     bundle.to_json(f"s3://fdgf-prod/audit/validation/basel3_{reporting_date}.json")
 
-    if not bundle.submission_ready:
+    if not bundle.critical_checks_passed:
         raise ValueError(
             f"Data quality validation failed: {bundle.critical_failures} critical failures. "
-            f"Pass rate: {bundle.pass_rate_pct}%. Submission blocked."
+            f"Pass rate: {bundle.pass_rate_pct}%. Downstream review blocked."
         )
 
     # Push bundle stats to XCom for downstream tasks
@@ -119,11 +119,11 @@ def generate_audit_evidence(**context) -> None:
     # In production: compile lineage + validation + model governance into a single submission package
 
 
-def notify_submission_ready(**context) -> None:
-    """Notify risk and compliance teams that the report is ready for regulatory submission."""
+def notify_checks_complete(**context) -> None:
+    """Notify downstream reviewers that critical validation checks passed."""
     reporting_date = context["ds"]
-    print(f"✅ Basel III RWA report for {reporting_date} is SUBMISSION READY.")
-    # In production: send email/Slack notification with audit bundle link
+    print(f"Basel III RWA reference workflow for {reporting_date} passed critical validation checks.")
+    # In production: send a lightweight review notification with artifact links
 
 
 # ---------------------------------------------------------------------------
@@ -171,14 +171,14 @@ with DAG(
         )
         rwa_calc >> recon
 
-    with TaskGroup("audit_and_submission") as audit_group:
+    with TaskGroup("audit_and_review") as audit_group:
         audit = PythonOperator(
             task_id="generate_audit_evidence",
             python_callable=generate_audit_evidence,
         )
         notify = PythonOperator(
-            task_id="notify_submission_ready",
-            python_callable=notify_submission_ready,
+            task_id="notify_checks_complete",
+            python_callable=notify_checks_complete,
         )
         audit >> notify
 

@@ -4,7 +4,7 @@ governance/pipelines/basel3_pipeline.py
 Reference PySpark pipeline for Basel III RWA regulatory reporting.
 Embeds governance-as-code controls (validation, lineage, audit) directly
 into the data processing workflow — replacing manual reconciliation with
-continuous, automated, regulator-ready evidence generation.
+continuous, automated, review-ready evidence generation.
 
 Regulatory alignment:
   - Basel III Capital Adequacy Framework
@@ -72,7 +72,7 @@ class Basel3RWAPipeline:
       2. Validate — run BCBS 239 / Basel III data quality rules
       3. Transform — calculate RWA amounts and capital requirements
       4. Reconcile — cross-check totals against GL reference data
-      5. Output — write regulator-ready report with audit evidence
+      5. Output — write reference report artifacts with audit evidence
       6. Audit — persist lineage, validation bundle, and audit trail
 
     Usage
@@ -88,7 +88,7 @@ class Basel3RWAPipeline:
     ...     exposure_path="s3://fdgf-prod/raw/exposures/20260331/",
     ...     gl_reference_path="s3://fdgf-prod/raw/gl_balances/20260331/",
     ... )
-    >>> assert result.submission_ready, "Do not submit — critical data quality failures exist."
+    >>> assert result.critical_checks_passed, "Critical data quality failures must be resolved first."
     """
 
     PIPELINE_NAME = "basel3_rwa_pipeline"
@@ -127,7 +127,7 @@ class Basel3RWAPipeline:
     ) -> AuditBundle:
         """
         Execute the full Basel III RWA pipeline.
-        Returns an AuditBundle — check bundle.submission_ready before filing.
+        Returns an AuditBundle for downstream review.
         """
         run_id = self.tracker.start_run()
         logger.info(
@@ -153,7 +153,7 @@ class Basel3RWAPipeline:
 
             if audit_bundle.critical_failures > 0:
                 logger.error(
-                    "%d CRITICAL validation failures — pipeline halted. Do not submit.",
+                    "%d CRITICAL validation failures — pipeline halted pending review.",
                     audit_bundle.critical_failures,
                 )
                 self.tracker.fail_run(
@@ -193,8 +193,8 @@ class Basel3RWAPipeline:
             self.tracker.complete_run()
 
             logger.info(
-                "Basel III RWA Pipeline COMPLETE | submission_ready=%s",
-                audit_bundle.submission_ready
+                "Basel III RWA Pipeline COMPLETE | critical_checks_passed=%s",
+                audit_bundle.critical_checks_passed
             )
             return audit_bundle
 

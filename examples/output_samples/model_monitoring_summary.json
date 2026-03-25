@@ -5,5 +5,5 @@
   "drift_findings": 0,
   "fairness_findings": 0,
   "ready_for_review": false,
-  "explainability_status": "not_implemented"
+  "explainability_status": "not_configured"
 }
