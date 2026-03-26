@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fdgf"
-version = "0.1.2"
+version = "0.1.4"
 description = "Financial Data Governance Framework: reusable, regulator-aligned governance-as-code framework for regulated financial data workflows"
 readme = "README.md"
 requires-python = ">=3.10"

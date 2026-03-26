@@ -447,6 +447,9 @@ class TestDriftDetection:
         assert report.ready_for_review is False
         assert len(report.fairness_results) == 1
         assert report.fairness_results[0].status == "SKIPPED"
+        assert report.has_skipped_fairness is True
+        assert report.has_fairness_violation is False
+        assert report.overall_status == "FAIRNESS_SKIPPED"
         assert "decision_flag" in report.fairness_results[0].details
 
     def test_model_monitor_flags_missing_sensitive_column_as_skipped(self, tmp_path):
@@ -472,7 +475,75 @@ class TestDriftDetection:
         assert report.ready_for_review is False
         assert len(report.fairness_results) == 1
         assert report.fairness_results[0].status == "SKIPPED"
+        assert report.has_skipped_fairness is True
+        assert report.has_fairness_violation is False
+        assert report.overall_status == "FAIRNESS_SKIPPED"
         assert "segment" in report.fairness_results[0].details
+
+    def test_model_monitor_reports_fairness_failure_distinctly(self, tmp_path):
+        from governance.model_governance.drift_detector import ModelGovernanceMonitor
+
+        monitor = ModelGovernanceMonitor(output_dir=tmp_path)
+        baseline = pd.DataFrame({"score": [0.1, 0.2, 0.3, 0.4]})
+        current = pd.DataFrame(
+            {
+                "score": [0.1, 0.2, 0.3, 0.4],
+                "decision_flag": [1, 1, 0, 0],
+                "segment": ["A", "A", "B", "B"],
+            }
+        )
+
+        report = monitor.run_full_assessment(
+            model_id="MODEL",
+            model_version="1.0",
+            baseline_data=baseline,
+            current_data=current,
+            feature_columns=[],
+            score_column="score",
+            decision_column="decision_flag",
+            sensitive_column="segment",
+            reference_group="A",
+            reporting_date="2026-03-31",
+        )
+
+        assert report.ready_for_review is False
+        assert report.has_fairness_violation is True
+        assert report.has_skipped_fairness is False
+        assert report.overall_status == "FAIRNESS_FAILED"
+
+    def test_model_monitor_ready_for_review_when_fairness_runs_and_passes(self, tmp_path):
+        from governance.model_governance.drift_detector import ModelGovernanceMonitor
+
+        monitor = ModelGovernanceMonitor(output_dir=tmp_path)
+        baseline = pd.DataFrame({"score": [0.1, 0.2, 0.3, 0.4]})
+        current = pd.DataFrame(
+            {
+                "score": [0.1, 0.2, 0.3, 0.4],
+                "decision_flag": [1, 1, 1, 1],
+                "segment": ["A", "A", "B", "B"],
+            }
+        )
+
+        report = monitor.run_full_assessment(
+            model_id="MODEL",
+            model_version="1.0",
+            baseline_data=baseline,
+            current_data=current,
+            feature_columns=[],
+            score_column="score",
+            decision_column="decision_flag",
+            sensitive_column="segment",
+            reference_group="A",
+            reporting_date="2026-03-31",
+        )
+
+        assert report.ready_for_review is True
+        assert len(report.fairness_results) == 1
+        assert report.fairness_results[0].status == "COMPUTED"
+        assert report.fairness_results[0].passed is True
+        assert report.has_fairness_violation is False
+        assert report.has_skipped_fairness is False
+        assert report.overall_status == "MONITORING_COMPLETE"
 
 
 # ---------------------------------------------------------------------------
@@ -537,15 +608,77 @@ class TestLineageTracker:
         first.start_run()
         first.record_input("a", "s3://one/", "SYS", record_count=10)
         first.record_input("b", "s3://two/", "SYS", record_count=20)
+        first.record_output("out_b", "s3://out-b/", "FDGF", record_count=10)
+        first.record_output("out_a", "s3://out-a/", "FDGF", record_count=20)
         first.record_transformation("join_data", "JOIN", sql_or_code="SELECT * FROM a JOIN b")
-        first.record_output("out", "s3://out/", "FDGF", record_count=30)
+        first.record_transformation("aggregate_data", "AGGREGATE", sql_or_code="SELECT sum(x) FROM joined")
 
         second = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
         second.start_run()
         second.record_input("b", "s3://two/", "SYS", record_count=20)
         second.record_input("a", "s3://one/", "SYS", record_count=10)
+        second.record_output("out_a", "s3://out-a/", "FDGF", record_count=20)
+        second.record_output("out_b", "s3://out-b/", "FDGF", record_count=10)
+        second.record_transformation("aggregate_data", "AGGREGATE", sql_or_code="SELECT sum(x) FROM joined")
         second.record_transformation("join_data", "JOIN", sql_or_code="SELECT * FROM a JOIN b")
-        second.record_output("out", "s3://out/", "FDGF", record_count=30)
+
+        assert first._fingerprint_lineage_graph() == second._fingerprint_lineage_graph()
+
+    def test_lineage_fingerprint_is_deterministic_when_transform_sort_keys_tie(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        first = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
+        first.start_run()
+        first.record_input("a", "s3://one/", "SYS", record_count=10)
+        first.record_output("out", "s3://out/", "FDGF", record_count=10)
+        first.record_transformation(
+            "shared_name",
+            "SQL",
+            sql_or_code="SELECT * FROM staged",
+            spark_plan="Project [a]",
+        )
+        first.record_transformation(
+            "shared_name",
+            "SQL",
+            sql_or_code="SELECT * FROM staged",
+            spark_plan="Project [b]",
+        )
+
+        second = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
+        second.start_run()
+        second.record_input("a", "s3://one/", "SYS", record_count=10)
+        second.record_output("out", "s3://out/", "FDGF", record_count=10)
+        second.record_transformation(
+            "shared_name",
+            "SQL",
+            sql_or_code="SELECT * FROM staged",
+            spark_plan="Project [b]",
+        )
+        second.record_transformation(
+            "shared_name",
+            "SQL",
+            sql_or_code="SELECT * FROM staged",
+            spark_plan="Project [a]",
+        )
+
+        assert first._fingerprint_lineage_graph() == second._fingerprint_lineage_graph()
+
+    def test_lineage_fingerprint_treats_identical_transform_entries_as_interchangeable(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        first = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
+        first.start_run()
+        first.record_input("a", "s3://one/", "SYS", record_count=10)
+        first.record_output("out", "s3://out/", "FDGF", record_count=10)
+        first.record_transformation("shared_name", "SQL", sql_or_code="SELECT * FROM staged")
+        first.record_transformation("shared_name", "SQL", sql_or_code="SELECT * FROM staged")
+
+        second = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
+        second.start_run()
+        second.record_input("a", "s3://one/", "SYS", record_count=10)
+        second.record_output("out", "s3://out/", "FDGF", record_count=10)
+        second.record_transformation("shared_name", "SQL", sql_or_code="SELECT * FROM staged")
+        second.record_transformation("shared_name", "SQL", sql_or_code="SELECT * FROM staged")
 
         assert first._fingerprint_lineage_graph() == second._fingerprint_lineage_graph()
 

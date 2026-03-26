@@ -106,12 +106,20 @@ class ModelGovernanceReport:
 
     @property
     def has_fairness_violation(self) -> bool:
-        return any(not r.passed for r in self.fairness_results)
+        return any(r.status == "COMPUTED" and not r.passed for r in self.fairness_results)
+
+    @property
+    def has_skipped_fairness(self) -> bool:
+        return any(r.status in {"SKIPPED", "INSUFFICIENT_INPUTS"} for r in self.fairness_results)
 
     @property
     def overall_status(self) -> str:
-        if self.has_critical_drift or self.has_fairness_violation:
+        if self.has_critical_drift:
             return "REQUIRES_REVIEW"
+        if self.has_fairness_violation:
+            return "FAIRNESS_FAILED"
+        if self.has_skipped_fairness:
+            return "FAIRNESS_SKIPPED"
         return "MONITORING_COMPLETE"
 
     def to_json(self, path: str | Path) -> None:
@@ -121,6 +129,7 @@ class ModelGovernanceReport:
             **asdict(self),
             "has_critical_drift":    self.has_critical_drift,
             "has_fairness_violation": self.has_fairness_violation,
+            "has_skipped_fairness":  self.has_skipped_fairness,
             "overall_status":        self.overall_status,
         }
         with open(path, "w") as fh:
@@ -499,8 +508,9 @@ class ModelGovernanceMonitor:
         explainability = default_explainability_report()
 
         critical_drift   = any(r.drifted and r.severity == "CRITICAL" for r in drift_results)
-        fairness_pass    = all(r.passed for r in fairness_results)
-        ready_for_review = not critical_drift and fairness_pass
+        fairness_failed  = any(r.status == "COMPUTED" and not r.passed for r in fairness_results)
+        fairness_skipped = any(r.status in {"SKIPPED", "INSUFFICIENT_INPUTS"} for r in fairness_results)
+        ready_for_review = not critical_drift and not fairness_failed and not fairness_skipped
 
         report = ModelGovernanceReport(
             report_id         = f"{model_id}_{reporting_date.replace('-', '')}",

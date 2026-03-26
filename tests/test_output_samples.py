@@ -31,4 +31,14 @@ def test_lineage_sample_has_expected_shape():
 
 def test_validation_sample_exposes_fingerprint_method():
     payload = json.loads((ROOT / "examples" / "output_samples" / "validation_summary.json").read_text())
+    assert payload["framework_version"]
+    assert payload["dataset_fingerprint"]
     assert payload["dataset_fingerprint_method"] == "schema_row_count"
+    assert payload["dataset_fingerprint_scope"] == "structural"
+
+
+def test_model_monitoring_sample_exposes_framework_and_fairness_skip_fields():
+    payload = json.loads((ROOT / "examples" / "output_samples" / "model_monitoring_summary.json").read_text())
+    assert payload["framework_version"]
+    assert "has_fairness_violation" in payload
+    assert "has_skipped_fairness" in payload

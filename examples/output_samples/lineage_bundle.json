@@ -1,11 +1,11 @@
 {
   "bundle_type": "LINEAGE_AUDIT",
-  "run_id": "a75f2d5b-bdb3-4584-949d-3268490530c5",
+  "run_id": "54d8261e-4ba7-42b7-8dfe-7de99fc21384",
   "job_name": "fdgf_artifact_bundle_demo",
   "job_namespace": "fdgf.examples",
   "regulatory_scope": "Illustrative regulatory control workflow",
-  "generated_at": "2026-03-26T20:40:45.199127+00:00",
-  "framework_version": "0.1.2",
+  "generated_at": "2026-03-26T22:15:00.446736+00:00",
+  "framework_version": "0.1.4",
   "total_events": 2,
   "inputs": [
     {
@@ -33,7 +33,7 @@
   ],
   "transformations": [
     {
-      "transform_id": "1F800219",
+      "transform_id": "4D27C61E",
       "transform_name": "demo_rollup",
       "transform_type": "AGGREGATE",
       "sql_or_code": "sum(exposure_amount) by reporting_date",
@@ -43,9 +43,9 @@
   "events": [
     {
       "eventType": "START",
-      "eventTime": "2026-03-26T20:40:45.198701+00:00",
+      "eventTime": "2026-03-26T22:15:00.446117+00:00",
       "run": {
-        "runId": "a75f2d5b-bdb3-4584-949d-3268490530c5",
+        "runId": "54d8261e-4ba7-42b7-8dfe-7de99fc21384",
         "facets": {
           "regulatoryScope": {
             "scope": "Illustrative regulatory control workflow"
@@ -56,20 +56,20 @@
         "namespace": "fdgf.examples",
         "name": "fdgf_artifact_bundle_demo",
         "facets": {
-          "producer": "fdgf/lineage-tracker/0.1.2"
+          "producer": "fdgf/lineage-tracker/0.1.4"
         }
       },
       "inputs": [],
       "outputs": [],
       "transformations": [],
-      "producer": "fdgf/lineage-tracker/0.1.2",
+      "producer": "fdgf/lineage-tracker/0.1.4",
       "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     },
     {
       "eventType": "COMPLETE",
-      "eventTime": "2026-03-26T20:40:45.198987+00:00",
+      "eventTime": "2026-03-26T22:15:00.446501+00:00",
       "run": {
-        "runId": "a75f2d5b-bdb3-4584-949d-3268490530c5",
+        "runId": "54d8261e-4ba7-42b7-8dfe-7de99fc21384",
         "facets": {
           "regulatoryScope": {
             "scope": "Illustrative regulatory control workflow"
@@ -80,7 +80,7 @@
         "namespace": "fdgf.examples",
         "name": "fdgf_artifact_bundle_demo",
         "facets": {
-          "producer": "fdgf/lineage-tracker/0.1.2"
+          "producer": "fdgf/lineage-tracker/0.1.4"
         }
       },
       "inputs": [
@@ -109,14 +109,14 @@
       ],
       "transformations": [
         {
-          "transform_id": "1F800219",
+          "transform_id": "4D27C61E",
           "transform_name": "demo_rollup",
           "transform_type": "AGGREGATE",
           "sql_or_code": "sum(exposure_amount) by reporting_date",
           "spark_plan": ""
         }
       ],
-      "producer": "fdgf/lineage-tracker/0.1.2",
+      "producer": "fdgf/lineage-tracker/0.1.4",
       "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     }
   ],

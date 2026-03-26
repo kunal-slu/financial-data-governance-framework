@@ -7,6 +7,8 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
+DATASET_FINGERPRINT_SCOPE = "structural"
+
 
 class ComplianceSummaryBuilder:
     """Build concise roll-up summaries from generated governance artifacts."""
@@ -22,7 +24,10 @@ class ComplianceSummaryBuilder:
             "bundle_id": getattr(bundle, "bundle_id", ""),
             "reporting_date": getattr(bundle, "reporting_date", ""),
             "regulatory_scope": getattr(bundle, "regulatory_scope", ""),
+            "framework_version": getattr(bundle, "framework_version", ""),
+            "dataset_fingerprint": getattr(bundle, "dataset_fingerprint", ""),
             "dataset_fingerprint_method": getattr(bundle, "dataset_fingerprint_method", ""),
+            "dataset_fingerprint_scope": DATASET_FINGERPRINT_SCOPE,
             "total_rules": getattr(bundle, "total_rules", 0),
             "passed_rules": getattr(bundle, "passed_rules", 0),
             "failed_rules": getattr(bundle, "failed_rules", 0),
@@ -37,9 +42,26 @@ class ComplianceSummaryBuilder:
         return {
             "model_id": getattr(report, "model_id", ""),
             "model_version": getattr(report, "model_version", ""),
+            "framework_version": getattr(report, "framework_version", ""),
             "overall_status": getattr(report, "overall_status", "UNKNOWN"),
             "drift_findings": len([r for r in drift_results if getattr(r, "drifted", False)]),
-            "fairness_findings": len([r for r in fairness_results if not getattr(r, "passed", True)]),
+            "has_fairness_violation": getattr(report, "has_fairness_violation", False),
+            "fairness_findings": len(
+                [
+                    r
+                    for r in fairness_results
+                    if getattr(r, "status", "COMPUTED") == "COMPUTED"
+                    and not getattr(r, "passed", True)
+                ]
+            ),
+            "fairness_skipped": len(
+                [
+                    r
+                    for r in fairness_results
+                    if getattr(r, "status", "COMPUTED") in {"SKIPPED", "INSUFFICIENT_INPUTS"}
+                ]
+            ),
+            "has_skipped_fairness": getattr(report, "has_skipped_fairness", False),
             "ready_for_review": getattr(report, "ready_for_review", False),
             "explainability_status": self._extract_explainability_status(
                 getattr(report, "explainability", None)

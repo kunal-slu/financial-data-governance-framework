@@ -20,8 +20,38 @@
     "job_name": { "type": "string" },
     "job_namespace": { "type": "string" },
     "regulatory_scope": { "type": "string" },
-    "inputs": { "type": "array" },
-    "outputs": { "type": "array" },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dataset_fingerprint", "dataset_fingerprint_method"],
+        "properties": {
+          "dataset_fingerprint": { "type": "string" },
+          "dataset_fingerprint_method": {
+            "type": "string",
+            "description": "Fingerprint method emitted for this dataset facet. The method depends on whether the source is a local file or a metadata-only dataset reference.",
+            "enum": ["sha256_file_content", "metadata_shape_fingerprint"]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dataset_fingerprint", "dataset_fingerprint_method"],
+        "properties": {
+          "dataset_fingerprint": { "type": "string" },
+          "dataset_fingerprint_method": {
+            "type": "string",
+            "description": "Fingerprint method emitted for this dataset facet. The method depends on whether the source is a local file or a metadata-only dataset reference.",
+            "enum": ["sha256_file_content", "metadata_shape_fingerprint"]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
     "transformations": { "type": "array" },
     "lineage_fingerprint": { "type": "string" }
   },

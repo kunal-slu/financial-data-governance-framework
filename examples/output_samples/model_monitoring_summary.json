@@ -1,9 +1,13 @@
 {
   "model_id": "DEMO_MODEL",
   "model_version": "1.0.0",
+  "framework_version": "0.1.4",
   "overall_status": "REQUIRES_REVIEW",
   "drift_findings": 1,
+  "has_fairness_violation": false,
   "fairness_findings": 0,
+  "fairness_skipped": 0,
+  "has_skipped_fairness": false,
   "ready_for_review": false,
   "explainability_status": "not_configured"
 }

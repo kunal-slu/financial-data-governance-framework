@@ -301,34 +301,34 @@ class Basel3RWAPipeline:
 
     def _write_output(self, rwa_df: DataFrame, summary_df: DataFrame) -> None:
         """
-        Write output in Delta Lake format with version control.
-        Partitioned by reporting_date for efficient regulatory retrieval.
+        Write date-scoped Delta outputs after ensuring a reporting_date column is present.
         """
-        rwa_df = self._ensure_reporting_partition_column(rwa_df)
-        rwa_path     = f"{self.output_path}/rwa_detail"
-        summary_path = f"{self.output_path}/capital_summary"
+        rwa_detail_df = self._ensure_reporting_date_column(rwa_df)
+        capital_summary_df = self._ensure_reporting_date_column(summary_df)
+        rwa_path = f"{self.output_path}/rwa_detail/{self.reporting_date}"
+        summary_path = f"{self.output_path}/capital_summary/{self.reporting_date}"
 
         logger.info("Writing RWA detail to: %s", rwa_path)
         (
-            rwa_df.write
+            rwa_detail_df.write
             .format("delta")
             .mode("overwrite")
             .option("overwriteSchema", "true")
-            .partitionBy("reporting_date")
             .save(rwa_path)
         )
 
         logger.info("Writing capital summary to: %s", summary_path)
         (
-            summary_df.write
+            capital_summary_df.write
             .format("delta")
             .mode("overwrite")
+            .option("overwriteSchema", "true")
             .save(summary_path)
         )
 
     @staticmethod
-    def _ensure_reporting_partition_column(df: DataFrame) -> DataFrame:
-        """Ensure the detail output has a reporting_date partition column."""
+    def _ensure_reporting_date_column(df: DataFrame) -> DataFrame:
+        """Ensure the output dataframe has a reporting_date column."""
         if "reporting_date" in df.columns:
             return df
         if "_fdgf_reporting_date" in df.columns:

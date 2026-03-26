@@ -1,14 +1,24 @@
 from __future__ import annotations
 
 import pytest
-
-
 pytest.importorskip("pyspark")
 
 from pyspark.sql import SparkSession
 from pyspark.errors import PySparkRuntimeError
 
 from governance.data_quality.validators import RegulatoryDataValidator
+
+
+def _is_skippable_spark_startup_error(exc: Exception) -> bool:
+    """Skip only on known local Spark/Java bootstrap failures before Spark starts."""
+    bootstrap_tokens = (
+        "JAVA_GATEWAY_EXITED",
+        "BindException",
+        "UnknownHostException",
+        "Connection refused",
+        "getsockname failed",
+    )
+    return isinstance(exc, PySparkRuntimeError) or any(token in str(exc) for token in bootstrap_tokens)
 
 
 @pytest.fixture(scope="module")
@@ -18,10 +28,13 @@ def spark():
             SparkSession.builder
             .master("local[1]")
             .appName("fdgf-integration-tests")
+            .config("spark.sql.session.timeZone", "UTC")
             .getOrCreate()
         )
-    except PySparkRuntimeError as exc:
-        pytest.skip(f"PySpark integration tests skipped: {exc}")
+    except Exception as exc:
+        if _is_skippable_spark_startup_error(exc):
+            pytest.skip(f"PySpark integration tests skipped: {exc}")
+        raise
     yield spark
     spark.stop()
 
@@ -164,15 +177,31 @@ def test_timeliness_rule_uses_fixed_reporting_timestamp_for_max_lag_minutes(tmp_
         "    max_lag_minutes: 60\n"
     )
 
+    # The validator uses reporting_date 2026-03-31 and a fixed UTC anchor of
+    # 2026-03-31 23:59:59. With max_lag_minutes=60, the cutoff is 22:59:59 UTC.
     df = spark.createDataFrame(
-        [("2026-03-31 23:30:00",), ("2026-03-31 22:00:00",)],
-        "updated_at string",
-    ).selectExpr("to_timestamp(updated_at) as updated_at")
+        [
+            ("inside_threshold", "2026-03-31 23:30:00"),
+            ("at_cutoff", "2026-03-31 22:59:59"),
+            ("outside_threshold", "2026-03-31 22:00:00"),
+        ],
+        "row_id string, updated_at string",
+    ).selectExpr("row_id", "to_timestamp(updated_at) as updated_at")
 
     validator = RegulatoryDataValidator(spark, rule_path)
     bundle = validator.validate(df, "2026-03-31", "integration")
 
     result = bundle.results[0]
+    cutoff_timestamp = "2026-03-31 22:59:59"
+    cutoff_expr = f"to_timestamp('{cutoff_timestamp}')"
+    failing_rows = df.filter(f"updated_at < {cutoff_expr}")
+    cutoff_rows = df.filter(f"updated_at = {cutoff_expr}")
+    inside_rows = df.filter(f"updated_at > {cutoff_expr}")
+
     assert result.rule_type.value == "timeliness"
     assert result.passed is False
     assert result.records_failed == 1
+    assert failing_rows.count() == 1
+    assert [row.row_id for row in failing_rows.collect()] == ["outside_threshold"]
+    assert [row.row_id for row in cutoff_rows.collect()] == ["at_cutoff"]
+    assert [row.row_id for row in inside_rows.collect()] == ["inside_threshold"]
