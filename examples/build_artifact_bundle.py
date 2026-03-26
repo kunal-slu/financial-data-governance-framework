@@ -69,7 +69,7 @@ def _write_model_summary(out_dir: Path, summary: ComplianceSummaryBuilder) -> Pa
         {
             "fico_score": [590, 595, 605, 610, 615, 620, 625, 630],
             "model_score": [0.24, 0.23, 0.21, 0.20, 0.19, 0.18, 0.17, 0.16],
-            "outcome_flag": [1, 1, 1, 0, 1, 0, 1, 1],
+            "decision_flag": [1, 1, 1, 0, 1, 0, 1, 1],
             "segment": ["A", "A", "A", "A", "B", "B", "B", "B"],
         }
     )
@@ -80,7 +80,7 @@ def _write_model_summary(out_dir: Path, summary: ComplianceSummaryBuilder) -> Pa
         current_data=current_data,
         feature_columns=["fico_score"],
         score_column="model_score",
-        outcome_column="outcome_flag",
+        decision_column="decision_flag",
         sensitive_column="segment",
         reference_group="A",
         reporting_date="2026-03-31",

@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from governance._version import FRAMEWORK_VERSION
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +43,7 @@ class DatasetFacet:
     record_count:  int  = 0
     byte_size:     int  = 0
     dataset_fingerprint: str = ""  # Content hash for local files; deterministic fingerprint otherwise
+    dataset_fingerprint_method: str = "metadata_shape_fingerprint"
 
 
 @dataclass
@@ -67,7 +70,7 @@ class LineageEvent:
     outputs:         list[DatasetFacet]
     transformations: list[TransformationFacet]
     regulatory_scope: str         # e.g. "Basel III RWA", "CCAR FR Y-14A"
-    producer:        str = "fdgf/lineage-tracker/1.0.0"
+    producer:        str = f"fdgf/lineage-tracker/{FRAMEWORK_VERSION}"
     schema_url:      str = "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     event_time:      str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
@@ -210,6 +213,9 @@ class LineageTracker:
     ) -> None:
         """Record a source dataset consumed by this pipeline run."""
         self._ensure_active()
+        dataset_fingerprint, dataset_fingerprint_method = self._dataset_fingerprint_details(
+            name, namespace, record_count, byte_size, schema_version
+        )
         facet = DatasetFacet(
             name=name,
             namespace=namespace,
@@ -217,7 +223,8 @@ class LineageTracker:
             schema_version=schema_version,
             record_count=record_count,
             byte_size=byte_size or self._local_file_size(name, namespace),
-            dataset_fingerprint=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
+            dataset_fingerprint=dataset_fingerprint,
+            dataset_fingerprint_method=dataset_fingerprint_method,
         )
         self._inputs.append(facet)
         logger.debug("Input recorded: %s from %s (%d records)", name, source_system, record_count)
@@ -233,6 +240,9 @@ class LineageTracker:
     ) -> None:
         """Record a dataset produced by this pipeline run."""
         self._ensure_active()
+        dataset_fingerprint, dataset_fingerprint_method = self._dataset_fingerprint_details(
+            name, namespace, record_count, byte_size, schema_version
+        )
         facet = DatasetFacet(
             name=name,
             namespace=namespace,
@@ -240,7 +250,8 @@ class LineageTracker:
             schema_version=schema_version,
             record_count=record_count,
             byte_size=byte_size or self._local_file_size(name, namespace),
-            dataset_fingerprint=self._dataset_fingerprint(name, namespace, record_count, byte_size, schema_version),
+            dataset_fingerprint=dataset_fingerprint,
+            dataset_fingerprint_method=dataset_fingerprint_method,
         )
         self._outputs.append(facet)
         logger.debug("Output recorded: %s (%d records)", name, record_count)
@@ -283,7 +294,7 @@ class LineageTracker:
             "job_namespace":     self.job_namespace,
             "regulatory_scope":  self.regulatory_scope,
             "generated_at":      datetime.now(timezone.utc).isoformat(),
-            "framework_version": "1.0.0",
+            "framework_version": FRAMEWORK_VERSION,
             "total_events":      len(self._events),
             "inputs":            [asdict(i) for i in self._inputs],
             "outputs":           [asdict(o) for o in self._outputs],
@@ -334,27 +345,63 @@ class LineageTracker:
     def _fingerprint_lineage_graph(self) -> str:
         raw = json.dumps(
             {
-                "inputs":  [asdict(i) for i in self._inputs],
-                "outputs": [asdict(o) for o in self._outputs],
-                "transforms": [asdict(t) for t in self._transforms],
+                "inputs": self._sorted_dataset_facets(self._inputs),
+                "outputs": self._sorted_dataset_facets(self._outputs),
+                "transforms": self._sorted_transformation_facets(self._transforms),
             },
             sort_keys=True,
         )
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @staticmethod
-    def _dataset_fingerprint(
+    def _dataset_fingerprint_details(
         name: str,
         namespace: str,
         record_count: int,
         byte_size: int,
         schema_version: str,
-    ) -> str:
+    ) -> tuple[str, str]:
         local_path = LineageTracker._resolve_local_path(name, namespace)
         if local_path is not None and local_path.is_file():
-            return LineageTracker._hash_file_contents(local_path)
+            return LineageTracker._hash_file_contents(local_path), "sha256_file_content"
         raw = f"{name}|{namespace}|{record_count}|{byte_size}|{schema_version}"
-        return hashlib.sha256(raw.encode()).hexdigest()[:16]
+        return hashlib.sha256(raw.encode()).hexdigest()[:16], "metadata_shape_fingerprint"
+
+    @staticmethod
+    def _sorted_dataset_facets(facets: list[DatasetFacet]) -> list[dict[str, Any]]:
+        return sorted(
+            [asdict(facet) for facet in facets],
+            key=lambda item: (
+                item["name"],
+                item["namespace"],
+                item["source_system"],
+                item["schema_version"],
+                item["record_count"],
+                item["byte_size"],
+                item["dataset_fingerprint"],
+                item["dataset_fingerprint_method"],
+            ),
+        )
+
+    @staticmethod
+    def _sorted_transformation_facets(facets: list[TransformationFacet]) -> list[dict[str, Any]]:
+        return sorted(
+            [
+                {
+                    "transform_name": facet.transform_name,
+                    "transform_type": facet.transform_type,
+                    "sql_or_code": facet.sql_or_code,
+                    "spark_plan": facet.spark_plan,
+                }
+                for facet in facets
+            ],
+            key=lambda item: (
+                item["transform_name"],
+                item["transform_type"],
+                item["sql_or_code"],
+                item["spark_plan"],
+            ),
+        )
 
     @staticmethod
     def _resolve_local_path(name: str, namespace: str) -> Path | None:

@@ -5,6 +5,7 @@ from governance.model_governance.explainability import (
     ExplainabilityStatus,
 )
 from governance.reporting import ComplianceSummaryBuilder
+from governance._version import FRAMEWORK_VERSION
 
 
 def test_validation_summary_builder(tmp_path):
@@ -35,6 +36,7 @@ def test_validation_summary_builder(tmp_path):
     payload = builder.build_validation_summary(bundle)
     assert payload["critical_checks_passed"] is False
     assert payload["critical_rule_ids"] == ["R1"]
+    assert payload["dataset_fingerprint_method"] == "schema_row_count"
 
     json_path = builder.write_json(payload, tmp_path / "summary.json")
     md_path = builder.write_markdown(payload, "Validation Summary", tmp_path / "summary.md")
@@ -62,3 +64,4 @@ def test_model_summary_builder_uses_explainability_report_status():
 
     assert payload["explainability_status"] == "not_configured"
     assert payload["ready_for_review"] is False
+    assert report.framework_version == FRAMEWORK_VERSION

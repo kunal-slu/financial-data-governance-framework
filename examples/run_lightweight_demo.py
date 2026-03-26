@@ -30,8 +30,8 @@ def main() -> None:
     psi_result = PSICalculator().calculate(baseline, current, "fico_score", "DEMO_MODEL")
 
     fairness = FairnessChecker().check_selection_rate(
-        y_pred=pd.Series([1, 1, 1, 0, 1, 0, 1, 1]),
-        sensitive_feature=pd.Series(["A", "A", "A", "A", "B", "B", "B", "B"]),
+        decision_series=pd.Series([1, 1, 1, 0, 1, 0, 1, 1]),
+        sensitive_attribute=pd.Series(["A", "A", "A", "A", "B", "B", "B", "B"]),
         reference_group="A",
         model_id="DEMO_MODEL",
     )

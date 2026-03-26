@@ -26,6 +26,7 @@ from governance.data_quality.validators import (
     Severity,
     RuleType,
 )
+from governance._version import FRAMEWORK_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +232,8 @@ class TestAuditBundle:
             data = json.load(f)
         assert data["bundle_id"] == "TEST001"
         assert data["critical_checks_passed"] is True
+        assert data["framework_version"] == FRAMEWORK_VERSION
+        assert data["dataset_fingerprint_method"] == "schema_row_count"
         assert "pass_rate_pct" in data
 
 
@@ -253,6 +256,34 @@ class TestValidatorFingerprint:
         assert fingerprint_a == fingerprint_b
         assert fingerprint_a != fingerprint_c
         df.limit.assert_not_called()
+
+    def test_dataframe_fingerprint_changes_when_schema_changes(self, mock_spark, tmp_path):
+        validator = RegulatoryDataValidator(mock_spark, tmp_path / "unused.yaml")
+        df_a = MagicMock()
+        df_b = MagicMock()
+        schema_a = MagicMock()
+        schema_b = MagicMock()
+        schema_a.jsonValue.return_value = {
+            "type": "struct",
+            "fields": [{"name": "counterparty_id", "type": "string"}],
+        }
+        schema_b.jsonValue.return_value = {
+            "type": "struct",
+            "fields": [
+                {"name": "counterparty_id", "type": "string"},
+                {"name": "facility_id", "type": "string"},
+            ],
+        }
+        df_a.schema = schema_a
+        df_b.schema = schema_b
+
+        assert validator._fingerprint_dataframe(df_a, 10) != validator._fingerprint_dataframe(df_b, 10)
+
+    def test_timeliness_reference_values_are_reporting_date_based(self, mock_spark, tmp_path):
+        validator = RegulatoryDataValidator(mock_spark, tmp_path / "unused.yaml")
+
+        assert validator._timeliness_reference_date("2026-03-31") == "2026-03-31"
+        assert validator._timeliness_reference_timestamp("2026-03-31") == "2026-03-31 23:59:59"
 
 
 # ---------------------------------------------------------------------------
@@ -341,8 +372,8 @@ class TestDriftDetection:
         groups  = pd.Series(["A", "A", "A", "A", "A", "B", "B", "B", "B", "B"])
 
         results = checker.check_selection_rate(
-            y_pred=y_pred,
-            sensitive_feature=groups,
+            decision_series=y_pred,
+            sensitive_attribute=groups,
             reference_group="A",
             model_id="CREDIT_MODEL",
         )
@@ -361,8 +392,8 @@ class TestDriftDetection:
         groups  = pd.Series(["REF"]*10 + ["PROT"]*10)
 
         results = checker.check_selection_rate(
-            y_pred=y_pred,
-            sensitive_feature=groups,
+            decision_series=y_pred,
+            sensitive_attribute=groups,
             reference_group="REF",
             model_id="CREDIT_MODEL",
         )
@@ -375,8 +406,8 @@ class TestDriftDetection:
         checker = FairnessChecker()
         with pytest.raises(ValueError):
             checker.check_selection_rate(
-                y_pred=pd.Series([1, 0, 1]),
-                sensitive_feature=pd.Series(["A", "A", "B"]),
+                decision_series=pd.Series([1, 0, 1]),
+                sensitive_attribute=pd.Series(["A", "A", "B"]),
                 reference_group="REF",
                 model_id="MODEL",
             )
@@ -387,11 +418,61 @@ class TestDriftDetection:
         checker = FairnessChecker()
         with pytest.raises(ValueError):
             checker.check_selection_rate(
-                y_pred=pd.Series([0, 0, 1, 1]),
-                sensitive_feature=pd.Series(["REF", "REF", "B", "B"]),
+                decision_series=pd.Series([0, 0, 1, 1]),
+                sensitive_attribute=pd.Series(["REF", "REF", "B", "B"]),
                 reference_group="REF",
                 model_id="MODEL",
             )
+
+    def test_model_monitor_flags_missing_decision_column_as_skipped(self, tmp_path):
+        from governance.model_governance.drift_detector import ModelGovernanceMonitor
+
+        monitor = ModelGovernanceMonitor(output_dir=tmp_path)
+        baseline = pd.DataFrame({"score": [0.1, 0.2]})
+        current = pd.DataFrame({"score": [0.1, 0.2], "segment": ["A", "B"]})
+
+        report = monitor.run_full_assessment(
+            model_id="MODEL",
+            model_version="1.0",
+            baseline_data=baseline,
+            current_data=current,
+            feature_columns=[],
+            score_column="score",
+            decision_column="decision_flag",
+            sensitive_column="segment",
+            reference_group="A",
+            reporting_date="2026-03-31",
+        )
+
+        assert report.ready_for_review is False
+        assert len(report.fairness_results) == 1
+        assert report.fairness_results[0].status == "SKIPPED"
+        assert "decision_flag" in report.fairness_results[0].details
+
+    def test_model_monitor_flags_missing_sensitive_column_as_skipped(self, tmp_path):
+        from governance.model_governance.drift_detector import ModelGovernanceMonitor
+
+        monitor = ModelGovernanceMonitor(output_dir=tmp_path)
+        baseline = pd.DataFrame({"score": [0.1, 0.2]})
+        current = pd.DataFrame({"score": [0.1, 0.2], "decision_flag": [1, 0]})
+
+        report = monitor.run_full_assessment(
+            model_id="MODEL",
+            model_version="1.0",
+            baseline_data=baseline,
+            current_data=current,
+            feature_columns=[],
+            score_column="score",
+            decision_column="decision_flag",
+            sensitive_column="segment",
+            reference_group="A",
+            reporting_date="2026-03-31",
+        )
+
+        assert report.ready_for_review is False
+        assert len(report.fairness_results) == 1
+        assert report.fairness_results[0].status == "SKIPPED"
+        assert "segment" in report.fairness_results[0].details
 
 
 # ---------------------------------------------------------------------------
@@ -427,6 +508,7 @@ class TestLineageTracker:
 
         assert bundle["run_id"] == run_id
         assert bundle["regulatory_scope"] == "Basel III RWA"
+        assert bundle["framework_version"] == FRAMEWORK_VERSION
         assert len(bundle["inputs"])  == 1
         assert len(bundle["outputs"]) == 1
         assert len(bundle["transformations"]) == 1
@@ -447,6 +529,25 @@ class TestLineageTracker:
         t2 = make_tracker()
 
         assert t1._fingerprint_lineage_graph() == t2._fingerprint_lineage_graph()
+
+    def test_lineage_fingerprint_is_deterministic_across_reordered_equivalent_artifacts(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        first = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
+        first.start_run()
+        first.record_input("a", "s3://one/", "SYS", record_count=10)
+        first.record_input("b", "s3://two/", "SYS", record_count=20)
+        first.record_transformation("join_data", "JOIN", sql_or_code="SELECT * FROM a JOIN b")
+        first.record_output("out", "s3://out/", "FDGF", record_count=30)
+
+        second = LineageTracker("job", "ns", "Basel III RWA", tmp_path)
+        second.start_run()
+        second.record_input("b", "s3://two/", "SYS", record_count=20)
+        second.record_input("a", "s3://one/", "SYS", record_count=10)
+        second.record_transformation("join_data", "JOIN", sql_or_code="SELECT * FROM a JOIN b")
+        second.record_output("out", "s3://out/", "FDGF", record_count=30)
+
+        assert first._fingerprint_lineage_graph() == second._fingerprint_lineage_graph()
 
     def test_recording_requires_active_run(self, tmp_path):
         from governance.lineage.tracker import LineageTracker
@@ -478,3 +579,13 @@ class TestLineageTracker:
 
         expected = __import__("hashlib").sha256(sample_file.read_bytes()).hexdigest()
         assert tracker._inputs[0].dataset_fingerprint == expected
+        assert tracker._inputs[0].dataset_fingerprint_method == "sha256_file_content"
+
+    def test_non_local_dataset_uses_metadata_fingerprint_method(self, tmp_path):
+        from governance.lineage.tracker import LineageTracker
+
+        tracker = LineageTracker("job", "ns", "scope", tmp_path)
+        tracker.start_run()
+        tracker.record_input("demo", "s3://bucket/path", "REMOTE", record_count=10)
+
+        assert tracker._inputs[0].dataset_fingerprint_method == "metadata_shape_fingerprint"

@@ -24,6 +24,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from governance._version import FRAMEWORK_VERSION
 from governance.model_governance.explainability import (
     ExplainabilityReport,
     default_explainability_report,
@@ -76,6 +77,7 @@ class FairnessResult:
     air_ratio:         float
     passed:            bool       # AIR >= 0.80 (standard ECOA/fair lending threshold)
     details:           str
+    status:            str = "COMPUTED"
     timestamp:         str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     regulatory_ref:    str = "Equal Credit Opportunity Act (ECOA) — AIR >= 0.80"
 
@@ -96,7 +98,7 @@ class ModelGovernanceReport:
     ready_for_review: bool
     override_reason:  str = ""
     generated_at:     str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    framework_version: str = "1.0.0"
+    framework_version: str = FRAMEWORK_VERSION
 
     @property
     def has_critical_drift(self) -> bool:
@@ -329,39 +331,39 @@ class FairnessChecker:
 
     def check_selection_rate(
         self,
-        y_pred:           pd.Series,
-        sensitive_feature: pd.Series,
+        decision_series:  pd.Series,
+        sensitive_attribute: pd.Series,
         reference_group:  str,
         model_id:         str,
     ) -> list[FairnessResult]:
-        if len(y_pred) != len(sensitive_feature):
-            raise ValueError("y_pred and sensitive_feature must have the same length.")
+        if len(decision_series) != len(sensitive_attribute):
+            raise ValueError("decision_series and sensitive_attribute must have the same length.")
 
-        valid_mask = y_pred.notna() & sensitive_feature.notna()
-        y_pred = y_pred[valid_mask]
-        sensitive_feature = sensitive_feature[valid_mask]
-        if y_pred.empty:
-            raise ValueError("Fairness check requires at least one non-null prediction.")
+        valid_mask = decision_series.notna() & sensitive_attribute.notna()
+        decision_series = decision_series[valid_mask]
+        sensitive_attribute = sensitive_attribute[valid_mask]
+        if decision_series.empty:
+            raise ValueError("Fairness check requires at least one non-null decision value.")
 
-        numeric_pred = pd.to_numeric(y_pred, errors="coerce")
+        numeric_pred = pd.to_numeric(decision_series, errors="coerce")
         if numeric_pred.isna().any():
-            raise ValueError("Fairness check requires binary numeric or boolean predictions.")
+            raise ValueError("Fairness check requires binary numeric or boolean decision values.")
         if not numeric_pred.isin([0, 1]).all():
-            raise ValueError("Fairness check expects predictions encoded as 0/1 or boolean values.")
-        if reference_group not in set(sensitive_feature):
-            raise ValueError(f"Reference group '{reference_group}' is not present in sensitive_feature.")
+            raise ValueError("Fairness check expects decisions encoded as 0/1 or boolean values.")
+        if reference_group not in set(sensitive_attribute):
+            raise ValueError(f"Reference group '{reference_group}' is not present in sensitive_attribute.")
 
         results = []
-        ref_rate = numeric_pred[sensitive_feature == reference_group].mean()
+        ref_rate = numeric_pred[sensitive_attribute == reference_group].mean()
         if pd.isna(ref_rate):
-            raise ValueError(f"Reference group '{reference_group}' has no valid predictions.")
+            raise ValueError(f"Reference group '{reference_group}' has no valid decision values.")
         if ref_rate == 0:
-            raise ValueError("Reference group selection rate is zero; AIR is not meaningful.")
+            raise ValueError("Reference group decision rate is zero; AIR is not meaningful.")
 
-        for group in sensitive_feature.unique():
+        for group in sensitive_attribute.unique():
             if group == reference_group:
                 continue
-            group_values = numeric_pred[sensitive_feature == group]
+            group_values = numeric_pred[sensitive_attribute == group]
             if group_values.empty:
                 continue
             group_rate = group_values.mean()
@@ -405,7 +407,7 @@ class ModelGovernanceMonitor:
     ...     current_data=current_df,
     ...     feature_columns=["fico_score", "dti_ratio", "credit_utilization"],
     ...     score_column="fraud_probability",
-    ...     outcome_column="fraud_flag",
+    ...     decision_column="fraud_flag",
     ...     sensitive_column="race_ethnicity",
     ...     reference_group="WHITE_NON_HISPANIC",
     ...     reporting_date="2026-03-31",
@@ -428,7 +430,7 @@ class ModelGovernanceMonitor:
         current_data:     pd.DataFrame,
         feature_columns:  list[str],
         score_column:     str,
-        outcome_column:   str,
+        decision_column:  str,
         sensitive_column: str,
         reference_group:  str,
         reporting_date:   str,
@@ -459,13 +461,39 @@ class ModelGovernanceMonitor:
             drift_results.append(ks_result)
 
         # 3. Fairness / AIR checks
-        if sensitive_column in current_data.columns and outcome_column in current_data.columns:
+        if sensitive_column in current_data.columns and decision_column in current_data.columns:
             fairness_results = self.fair_check.check_selection_rate(
-                y_pred=current_data[outcome_column],
-                sensitive_feature=current_data[sensitive_column],
+                decision_series=current_data[decision_column],
+                sensitive_attribute=current_data[sensitive_column],
                 reference_group=reference_group,
                 model_id=model_id,
             )
+        else:
+            missing_inputs = [
+                name
+                for name, present in (
+                    (decision_column, decision_column in current_data.columns),
+                    (sensitive_column, sensitive_column in current_data.columns),
+                )
+                if not present
+            ]
+            fairness_results = [
+                FairnessResult(
+                    model_id=model_id,
+                    metric="AIR_SELECTION_RATE",
+                    protected_group="",
+                    reference_group=reference_group,
+                    group_rate=0.0,
+                    reference_rate=0.0,
+                    air_ratio=0.0,
+                    passed=False,
+                    status="SKIPPED",
+                    details=(
+                        "Fairness check skipped because required input columns are missing: "
+                        + ", ".join(missing_inputs)
+                    ),
+                )
+            ]
 
         # 4. Explicit explainability status for demo outputs
         explainability = default_explainability_report()

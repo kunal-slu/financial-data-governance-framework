@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -73,3 +73,86 @@ def test_write_output_partitions_after_normalizing_reporting_date():
 
     pipeline._ensure_reporting_partition_column.assert_called_once_with(rwa_df)
     rwa_writer.partitionBy.assert_called_once_with("reporting_date")
+    rwa_writer.save.assert_called_once_with(f"{pipeline.output_path}/rwa_detail")
+    summary_writer.save.assert_called_once_with(f"{pipeline.output_path}/capital_summary")
+
+
+def test_run_records_lineage_as_stages_succeed():
+    pipeline = _make_pipeline()
+    exposure_df = MagicMock()
+    rwa_df = MagicMock()
+    summary_df = MagicMock()
+    audit_bundle = MagicMock()
+    audit_bundle.critical_failures = 0
+    audit_bundle.critical_checks_passed = True
+    exposure_df.count.return_value = 12
+    rwa_df.count.return_value = 12
+
+    pipeline._require_pyspark = MagicMock()
+    pipeline._ingest = MagicMock(return_value=exposure_df)
+    pipeline._load_gl_reference = MagicMock(return_value=None)
+    pipeline.validator.validate = MagicMock(return_value=audit_bundle)
+    pipeline._calculate_rwa = MagicMock(return_value=rwa_df)
+    pipeline._calculate_capital_summary = MagicMock(return_value=summary_df)
+    pipeline._write_output = MagicMock()
+    pipeline.tracker = MagicMock()
+    pipeline.tracker.start_run.return_value = "run-123"
+
+    result = pipeline.run("raw/exposures")
+
+    assert result is audit_bundle
+    pipeline._write_output.assert_called_once_with(rwa_df, summary_df)
+    assert pipeline.tracker.mock_calls == [
+        call.start_run(),
+        call.record_input(
+            name="raw_exposures",
+            namespace="raw/exposures",
+            source_system="CORE_BANKING",
+            record_count=12,
+        ),
+        call.record_transformation(
+            name="rwa_calculation",
+            transform_type="AGGREGATE",
+            sql_or_code=(
+                "SELECT counterparty_id, asset_class, "
+                "SUM(exposure_amount * risk_weight_pct / 100) AS rwa_amount "
+                "FROM exposures GROUP BY counterparty_id, asset_class"
+            ),
+        ),
+        call.record_output(
+            name="basel3_rwa_report",
+            namespace=pipeline.output_path,
+            source_system="FDGF_PIPELINE",
+            record_count=12,
+        ),
+        call.complete_run(),
+    ]
+
+
+def test_run_preserves_input_lineage_when_validation_halts_pipeline():
+    pipeline = _make_pipeline()
+    exposure_df = MagicMock()
+    audit_bundle = MagicMock()
+    audit_bundle.critical_failures = 2
+    exposure_df.count.return_value = 7
+
+    pipeline._require_pyspark = MagicMock()
+    pipeline._ingest = MagicMock(return_value=exposure_df)
+    pipeline._load_gl_reference = MagicMock(return_value=None)
+    pipeline.validator.validate = MagicMock(return_value=audit_bundle)
+    pipeline.tracker = MagicMock()
+    pipeline.tracker.start_run.return_value = "run-123"
+
+    result = pipeline.run("raw/exposures")
+
+    assert result is audit_bundle
+    assert pipeline.tracker.mock_calls == [
+        call.start_run(),
+        call.record_input(
+            name="raw_exposures",
+            namespace="raw/exposures",
+            source_system="CORE_BANKING",
+            record_count=7,
+        ),
+        call.fail_run(error="2 critical data quality failures"),
+    ]

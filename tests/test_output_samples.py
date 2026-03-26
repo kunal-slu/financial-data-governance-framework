@@ -25,3 +25,10 @@ def test_lineage_sample_has_expected_shape():
     assert payload["inputs"]
     assert payload["outputs"]
     assert payload["transformations"]
+    assert payload["inputs"][0]["dataset_fingerprint_method"]
+    assert payload["outputs"][0]["dataset_fingerprint_method"]
+
+
+def test_validation_sample_exposes_fingerprint_method():
+    payload = json.loads((ROOT / "examples" / "output_samples" / "validation_summary.json").read_text())
+    assert payload["dataset_fingerprint_method"] == "schema_row_count"

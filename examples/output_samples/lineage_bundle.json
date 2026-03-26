@@ -1,11 +1,11 @@
 {
   "bundle_type": "LINEAGE_AUDIT",
-  "run_id": "84836c0d-0c84-4a8a-b8a7-459eb57774ba",
+  "run_id": "a75f2d5b-bdb3-4584-949d-3268490530c5",
   "job_name": "fdgf_artifact_bundle_demo",
   "job_namespace": "fdgf.examples",
   "regulatory_scope": "Illustrative regulatory control workflow",
-  "generated_at": "2026-03-26T04:29:30.184416+00:00",
-  "framework_version": "1.0.0",
+  "generated_at": "2026-03-26T20:40:45.199127+00:00",
+  "framework_version": "0.1.2",
   "total_events": 2,
   "inputs": [
     {
@@ -15,7 +15,8 @@
       "schema_version": "1.0",
       "record_count": 4,
       "byte_size": 785,
-      "dataset_fingerprint": "58f1f19f7b5a8f9bdf92d2657369ba545126e3d8d5666783aa0e9af7d94906c8"
+      "dataset_fingerprint": "58f1f19f7b5a8f9bdf92d2657369ba545126e3d8d5666783aa0e9af7d94906c8",
+      "dataset_fingerprint_method": "sha256_file_content"
     }
   ],
   "outputs": [
@@ -26,12 +27,13 @@
       "schema_version": "1.0",
       "record_count": 1,
       "byte_size": 0,
-      "dataset_fingerprint": "f845e7a50cf672a3"
+      "dataset_fingerprint": "f845e7a50cf672a3",
+      "dataset_fingerprint_method": "metadata_shape_fingerprint"
     }
   ],
   "transformations": [
     {
-      "transform_id": "D248D289",
+      "transform_id": "1F800219",
       "transform_name": "demo_rollup",
       "transform_type": "AGGREGATE",
       "sql_or_code": "sum(exposure_amount) by reporting_date",
@@ -41,9 +43,9 @@
   "events": [
     {
       "eventType": "START",
-      "eventTime": "2026-03-26T04:29:30.183978+00:00",
+      "eventTime": "2026-03-26T20:40:45.198701+00:00",
       "run": {
-        "runId": "84836c0d-0c84-4a8a-b8a7-459eb57774ba",
+        "runId": "a75f2d5b-bdb3-4584-949d-3268490530c5",
         "facets": {
           "regulatoryScope": {
             "scope": "Illustrative regulatory control workflow"
@@ -54,20 +56,20 @@
         "namespace": "fdgf.examples",
         "name": "fdgf_artifact_bundle_demo",
         "facets": {
-          "producer": "fdgf/lineage-tracker/1.0.0"
+          "producer": "fdgf/lineage-tracker/0.1.2"
         }
       },
       "inputs": [],
       "outputs": [],
       "transformations": [],
-      "producer": "fdgf/lineage-tracker/1.0.0",
+      "producer": "fdgf/lineage-tracker/0.1.2",
       "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     },
     {
       "eventType": "COMPLETE",
-      "eventTime": "2026-03-26T04:29:30.184274+00:00",
+      "eventTime": "2026-03-26T20:40:45.198987+00:00",
       "run": {
-        "runId": "84836c0d-0c84-4a8a-b8a7-459eb57774ba",
+        "runId": "a75f2d5b-bdb3-4584-949d-3268490530c5",
         "facets": {
           "regulatoryScope": {
             "scope": "Illustrative regulatory control workflow"
@@ -78,7 +80,7 @@
         "namespace": "fdgf.examples",
         "name": "fdgf_artifact_bundle_demo",
         "facets": {
-          "producer": "fdgf/lineage-tracker/1.0.0"
+          "producer": "fdgf/lineage-tracker/0.1.2"
         }
       },
       "inputs": [
@@ -89,7 +91,8 @@
           "schema_version": "1.0",
           "record_count": 4,
           "byte_size": 785,
-          "dataset_fingerprint": "58f1f19f7b5a8f9bdf92d2657369ba545126e3d8d5666783aa0e9af7d94906c8"
+          "dataset_fingerprint": "58f1f19f7b5a8f9bdf92d2657369ba545126e3d8d5666783aa0e9af7d94906c8",
+          "dataset_fingerprint_method": "sha256_file_content"
         }
       ],
       "outputs": [
@@ -100,21 +103,22 @@
           "schema_version": "1.0",
           "record_count": 1,
           "byte_size": 0,
-          "dataset_fingerprint": "f845e7a50cf672a3"
+          "dataset_fingerprint": "f845e7a50cf672a3",
+          "dataset_fingerprint_method": "metadata_shape_fingerprint"
         }
       ],
       "transformations": [
         {
-          "transform_id": "D248D289",
+          "transform_id": "1F800219",
           "transform_name": "demo_rollup",
           "transform_type": "AGGREGATE",
           "sql_or_code": "sum(exposure_amount) by reporting_date",
           "spark_plan": ""
         }
       ],
-      "producer": "fdgf/lineage-tracker/1.0.0",
+      "producer": "fdgf/lineage-tracker/0.1.2",
       "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     }
   ],
-  "lineage_fingerprint": "9fb8fd4dd0338f913633266c0d85f1c2252f4565c23c09699327d05172bd6b9e"
+  "lineage_fingerprint": "1fadc29f969a0c15e7b5f7bea394fde9867dcca6f7ee7d1630ec8b38ca0a4941"
 }

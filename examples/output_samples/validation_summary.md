@@ -3,6 +3,7 @@
 - **bundle_id**: BUNDLE-DEMO-001
 - **reporting_date**: 2026-03-31
 - **regulatory_scope**: Basel III RWA
+- **dataset_fingerprint_method**: schema_row_count
 - **total_rules**: 25
 - **passed_rules**: 25
 - **failed_rules**: 0

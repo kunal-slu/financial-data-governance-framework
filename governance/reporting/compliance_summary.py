@@ -22,6 +22,7 @@ class ComplianceSummaryBuilder:
             "bundle_id": getattr(bundle, "bundle_id", ""),
             "reporting_date": getattr(bundle, "reporting_date", ""),
             "regulatory_scope": getattr(bundle, "regulatory_scope", ""),
+            "dataset_fingerprint_method": getattr(bundle, "dataset_fingerprint_method", ""),
             "total_rules": getattr(bundle, "total_rules", 0),
             "passed_rules": getattr(bundle, "passed_rules", 0),
             "failed_rules": getattr(bundle, "failed_rules", 0),

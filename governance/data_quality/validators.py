@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from governance._version import FRAMEWORK_VERSION
 
 try:
     from pyspark.sql import DataFrame, SparkSession
@@ -89,7 +90,8 @@ class AuditBundle:
     critical_failures: int
     results: list[ValidationResult]
     generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    framework_version: str = "1.0.0"
+    framework_version: str = FRAMEWORK_VERSION
+    dataset_fingerprint_method: str = "schema_row_count"
 
     @property
     def pass_rate_pct(self) -> float:
@@ -458,17 +460,23 @@ class RegulatoryDataValidator:
         return self._result(rule, RuleType.REGULATORY_FORMAT, column, total_rows, failed, f"Format check on {column}")
 
     def _check_timeliness(
-        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, __: str
+        self, rule: dict, df: DataFrame, _: DataFrame | None, total_rows: int, reporting_date: str
     ) -> ValidationResult:
         column = rule["column"]
         max_delay_days = rule.get("max_delay_days")
         max_lag_minutes = rule.get("max_lag_minutes")
         if max_lag_minutes is not None:
-            cutoff_expr = F.expr(f"current_timestamp() - INTERVAL {int(max_lag_minutes)} MINUTES")
+            reference_timestamp = self._timeliness_reference_timestamp(reporting_date)
+            cutoff_expr = F.expr(
+                f"to_timestamp('{reference_timestamp}') - INTERVAL {int(max_lag_minutes)} MINUTES"
+            )
             failed = df.filter(F.col(column) < cutoff_expr).count()
         else:
             max_delay_days = int(max_delay_days or 0)
-            failed = df.filter(F.datediff(F.current_date(), F.to_date(F.col(column))) > max_delay_days).count()
+            evaluation_date = F.to_date(F.lit(self._timeliness_reference_date(reporting_date)))
+            failed = df.filter(
+                F.datediff(evaluation_date, F.to_date(F.col(column))) > max_delay_days
+            ).count()
         return self._result(rule, RuleType.TIMELINESS, column, total_rows, failed, f"Timeliness check on {column}")
 
     def _check_row_condition(
@@ -531,6 +539,10 @@ class RegulatoryDataValidator:
         )
 
     def _fingerprint_dataframe(self, df: DataFrame, total_rows: int) -> str:
+        """Return a lightweight, deterministic dataset fingerprint.
+
+        This intentionally reflects dataframe shape rather than full row content.
+        """
         schema_value = df.schema.jsonValue() if hasattr(df.schema, "jsonValue") else str(df.schema)
         raw = json.dumps(
             {
@@ -544,6 +556,14 @@ class RegulatoryDataValidator:
     def _generate_bundle_id(self, scope: str, reporting_date: str) -> str:
         raw = f"{scope}|{reporting_date}|{datetime.now(timezone.utc).isoformat()}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+    @staticmethod
+    def _timeliness_reference_date(reporting_date: str) -> str:
+        return reporting_date
+
+    @staticmethod
+    def _timeliness_reference_timestamp(reporting_date: str) -> str:
+        return f"{reporting_date} 23:59:59"
 
     @staticmethod
     def _render_rule_template(value: str, reporting_date: str) -> str:

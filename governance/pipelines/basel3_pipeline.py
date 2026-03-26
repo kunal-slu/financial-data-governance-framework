@@ -20,13 +20,21 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    DoubleType, StringType, StructField, StructType, TimestampType,
-)
+try:
+    from pyspark.sql import DataFrame, SparkSession
+    from pyspark.sql import functions as F
+    from pyspark.sql.types import (
+        DoubleType, StringType, StructField, StructType, TimestampType,
+    )
+    PYSPARK_AVAILABLE = True
+except ImportError:  # pragma: no cover - enables lightweight import/test mode
+    DataFrame = Any  # type: ignore
+    SparkSession = Any  # type: ignore
+    F = None  # type: ignore
+    StructType = Any  # type: ignore
+    PYSPARK_AVAILABLE = False
 
 from governance.data_quality.validators import RegulatoryDataValidator, AuditBundle
 from governance.lineage.tracker import LineageTracker
@@ -38,24 +46,27 @@ logger = logging.getLogger(__name__)
 # Schema Definitions (Schema Enforcement — BCBS 239 Principle 2)
 # ---------------------------------------------------------------------------
 
-EXPOSURE_SCHEMA = StructType([
-    StructField("record_id",              StringType(),    False),
-    StructField("counterparty_id",        StringType(),    False),
-    StructField("facility_id",            StringType(),    False),
-    StructField("lei_code",               StringType(),    True),
-    StructField("asset_class",            StringType(),    False),
-    StructField("approach_type",          StringType(),    False),
-    StructField("exposure_amount",        DoubleType(),    False),
-    StructField("risk_weight_pct",        DoubleType(),    False),
-    StructField("pd_estimate",            DoubleType(),    True),
-    StructField("lgd_estimate",           DoubleType(),    True),
-    StructField("maturity_years",         DoubleType(),    True),
-    StructField("currency_code",          StringType(),    True),
-    StructField("reporting_date",         StringType(),    False),
-    StructField("source_system_id",       StringType(),    False),
-    StructField("ingestion_timestamp",    TimestampType(), False),
-    StructField("last_updated_timestamp", TimestampType(), False),
-])
+if PYSPARK_AVAILABLE:
+    EXPOSURE_SCHEMA = StructType([
+        StructField("record_id",              StringType(),    False),
+        StructField("counterparty_id",        StringType(),    False),
+        StructField("facility_id",            StringType(),    False),
+        StructField("lei_code",               StringType(),    True),
+        StructField("asset_class",            StringType(),    False),
+        StructField("approach_type",          StringType(),    False),
+        StructField("exposure_amount",        DoubleType(),    False),
+        StructField("risk_weight_pct",        DoubleType(),    False),
+        StructField("pd_estimate",            DoubleType(),    True),
+        StructField("lgd_estimate",           DoubleType(),    True),
+        StructField("maturity_years",         DoubleType(),    True),
+        StructField("currency_code",          StringType(),    True),
+        StructField("reporting_date",         StringType(),    False),
+        StructField("source_system_id",       StringType(),    False),
+        StructField("ingestion_timestamp",    TimestampType(), False),
+        StructField("last_updated_timestamp", TimestampType(), False),
+    ])
+else:  # pragma: no cover - used only when pyspark is absent
+    EXPOSURE_SCHEMA = None
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +140,7 @@ class Basel3RWAPipeline:
         Execute the full Basel III RWA pipeline.
         Returns an AuditBundle for downstream review.
         """
+        self._require_pyspark()
         run_id = self.tracker.start_run()
         logger.info(
             "Basel III RWA Pipeline | reporting_date=%s | run_id=%s",
@@ -138,6 +150,13 @@ class Basel3RWAPipeline:
         try:
             # Stage 1: Ingest
             exposure_df = self._ingest(exposure_path)
+            exposure_count = exposure_df.count()
+            self.tracker.record_input(
+                name="raw_exposures",
+                namespace=exposure_path,
+                source_system="CORE_BANKING",
+                record_count=exposure_count,
+            )
             gl_df       = self._load_gl_reference(gl_reference_path) if gl_reference_path else None
 
             # Stage 2: Validate (governance-as-code — runs before any transformation)
@@ -164,17 +183,6 @@ class Basel3RWAPipeline:
             # Stage 3: Transform
             rwa_df = self._calculate_rwa(exposure_df)
             capital_summary_df = self._calculate_capital_summary(rwa_df)
-
-            # Stage 4: Output
-            self._write_output(rwa_df, capital_summary_df)
-
-            # Stage 5: Record lineage
-            self.tracker.record_input(
-                name="raw_exposures",
-                namespace=exposure_path,
-                source_system="CORE_BANKING",
-                record_count=exposure_df.count(),
-            )
             self.tracker.record_transformation(
                 name="rwa_calculation",
                 transform_type="AGGREGATE",
@@ -184,11 +192,15 @@ class Basel3RWAPipeline:
                     "FROM exposures GROUP BY counterparty_id, asset_class"
                 ),
             )
+
+            # Stage 4: Output
+            self._write_output(rwa_df, capital_summary_df)
+            output_count = rwa_df.count()
             self.tracker.record_output(
                 name="basel3_rwa_report",
                 namespace=self.output_path,
                 source_system="FDGF_PIPELINE",
-                record_count=rwa_df.count(),
+                record_count=output_count,
             )
             self.tracker.complete_run()
 
@@ -202,6 +214,14 @@ class Basel3RWAPipeline:
             self.tracker.fail_run(error=str(exc))
             logger.error("Pipeline failed: %s", exc, exc_info=True)
             raise
+
+    @staticmethod
+    def _require_pyspark() -> None:
+        if not PYSPARK_AVAILABLE or F is None or EXPOSURE_SCHEMA is None:
+            raise ImportError(
+                "pyspark is required to execute the Basel III reference pipeline. "
+                "Install requirements-full.txt for pipeline support."
+            )
 
     # ------------------------------------------------------------------
     # Stage 1: Ingest
@@ -285,8 +305,8 @@ class Basel3RWAPipeline:
         Partitioned by reporting_date for efficient regulatory retrieval.
         """
         rwa_df = self._ensure_reporting_partition_column(rwa_df)
-        rwa_path     = f"{self.output_path}/rwa_detail/{self.reporting_date}"
-        summary_path = f"{self.output_path}/capital_summary/{self.reporting_date}"
+        rwa_path     = f"{self.output_path}/rwa_detail"
+        summary_path = f"{self.output_path}/capital_summary"
 
         logger.info("Writing RWA detail to: %s", rwa_path)
         (

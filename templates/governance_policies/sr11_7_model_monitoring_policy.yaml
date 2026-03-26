@@ -10,7 +10,7 @@ monitoring_scope:
     - monitoring_period
     - monitored_features
     - score_column
-    - outcome_column
+    - decision_column
 
 thresholds:
   drift_detection:
