@@ -289,7 +289,7 @@ class LineageTracker:
             "outputs":           [asdict(o) for o in self._outputs],
             "transformations":   [asdict(t) for t in self._transforms],
             "events":            [e.to_openlineage_dict() for e in self._events],
-            "lineage_hash":      self._hash_lineage_graph(),
+            "lineage_fingerprint": self._fingerprint_lineage_graph(),
         }
 
         ts  = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -331,7 +331,7 @@ class LineageTracker:
         if not self._active:
             raise RuntimeError("Lineage run is not active. Call start_run() before recording artifacts.")
 
-    def _hash_lineage_graph(self) -> str:
+    def _fingerprint_lineage_graph(self) -> str:
         raw = json.dumps(
             {
                 "inputs":  [asdict(i) for i in self._inputs],

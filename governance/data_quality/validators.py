@@ -531,12 +531,11 @@ class RegulatoryDataValidator:
         )
 
     def _fingerprint_dataframe(self, df: DataFrame, total_rows: int) -> str:
-        sample_rows = df.limit(25).toJSON().collect()
+        schema_value = df.schema.jsonValue() if hasattr(df.schema, "jsonValue") else str(df.schema)
         raw = json.dumps(
             {
-                "schema": str(df.schema),
+                "schema": schema_value,
                 "row_count": total_rows,
-                "sample_rows": sample_rows,
             },
             sort_keys=True,
         )

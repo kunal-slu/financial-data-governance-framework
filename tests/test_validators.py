@@ -234,6 +234,27 @@ class TestAuditBundle:
         assert "pass_rate_pct" in data
 
 
+class TestValidatorFingerprint:
+
+    def test_dataframe_fingerprint_uses_schema_and_row_count_only(self, mock_spark, tmp_path):
+        validator = RegulatoryDataValidator(mock_spark, tmp_path / "unused.yaml")
+        df = MagicMock()
+        schema = MagicMock()
+        schema.jsonValue.return_value = {
+            "type": "struct",
+            "fields": [{"name": "counterparty_id", "type": "string"}],
+        }
+        df.schema = schema
+
+        fingerprint_a = validator._fingerprint_dataframe(df, 10)
+        fingerprint_b = validator._fingerprint_dataframe(df, 10)
+        fingerprint_c = validator._fingerprint_dataframe(df, 11)
+
+        assert fingerprint_a == fingerprint_b
+        assert fingerprint_a != fingerprint_c
+        df.limit.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Drift Detection Tests
 # ---------------------------------------------------------------------------
@@ -273,6 +294,42 @@ class TestDriftDetection:
         current = pd.Series([600.0] * 100)
 
         result = calc.calculate(baseline, current, "fico_score", "TEST_MODEL")
+        assert result.drifted is False
+        assert "skipped" in result.interpretation.lower()
+
+    def test_ks_skips_empty_baseline(self):
+        from governance.model_governance.drift_detector import KSTestMonitor
+
+        result = KSTestMonitor().calculate(
+            baseline_scores=pd.Series([], dtype=float),
+            current_scores=pd.Series([0.1, 0.2, 0.3]),
+            model_id="TEST_MODEL",
+        )
+
+        assert result.drifted is False
+        assert "skipped" in result.interpretation.lower()
+
+    def test_ks_skips_empty_current(self):
+        from governance.model_governance.drift_detector import KSTestMonitor
+
+        result = KSTestMonitor().calculate(
+            baseline_scores=pd.Series([0.1, 0.2, 0.3]),
+            current_scores=pd.Series([], dtype=float),
+            model_id="TEST_MODEL",
+        )
+
+        assert result.drifted is False
+        assert "skipped" in result.interpretation.lower()
+
+    def test_ks_skips_all_null_inputs(self):
+        from governance.model_governance.drift_detector import KSTestMonitor
+
+        result = KSTestMonitor().calculate(
+            baseline_scores=pd.Series([None, None]),
+            current_scores=pd.Series([None, None]),
+            model_id="TEST_MODEL",
+        )
+
         assert result.drifted is False
         assert "skipped" in result.interpretation.lower()
 
@@ -373,10 +430,10 @@ class TestLineageTracker:
         assert len(bundle["inputs"])  == 1
         assert len(bundle["outputs"]) == 1
         assert len(bundle["transformations"]) == 1
-        assert "lineage_hash" in bundle
+        assert "lineage_fingerprint" in bundle
 
-    def test_lineage_hash_is_deterministic(self, tmp_path):
-        """Same inputs/outputs should produce the same lineage hash."""
+    def test_lineage_fingerprint_is_deterministic(self, tmp_path):
+        """Same inputs/outputs should produce the same lineage fingerprint."""
         from governance.lineage.tracker import LineageTracker
 
         def make_tracker():
@@ -389,7 +446,7 @@ class TestLineageTracker:
         t1 = make_tracker()
         t2 = make_tracker()
 
-        assert t1._hash_lineage_graph() == t2._hash_lineage_graph()
+        assert t1._fingerprint_lineage_graph() == t2._fingerprint_lineage_graph()
 
     def test_recording_requires_active_run(self, tmp_path):
         from governance.lineage.tracker import LineageTracker

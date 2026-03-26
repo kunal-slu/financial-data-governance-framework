@@ -116,5 +116,5 @@
       "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     }
   ],
-  "lineage_hash": "9fb8fd4dd0338f913633266c0d85f1c2252f4565c23c09699327d05172bd6b9e"
+  "lineage_fingerprint": "9fb8fd4dd0338f913633266c0d85f1c2252f4565c23c09699327d05172bd6b9e"
 }

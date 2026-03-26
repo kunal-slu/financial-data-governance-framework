@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 
 from governance.cli import main
 
@@ -55,3 +56,14 @@ def test_inspect_contract_cli_prints_contract_summary(tmp_path, monkeypatch, cap
 
     assert result == 0
     assert "RULE-001" in capsys.readouterr().out
+
+
+def test_demo_cli_explains_source_checkout_requirement(monkeypatch):
+    monkeypatch.setattr(
+        "governance.cli._load_demo_main",
+        lambda: (_ for _ in ()).throw(SystemExit("source checkout required")),
+    )
+    monkeypatch.setattr("sys.argv", ["fdgf", "demo"])
+
+    with pytest.raises(SystemExit, match="source checkout required"):
+        main()

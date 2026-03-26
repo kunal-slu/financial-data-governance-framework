@@ -269,9 +269,23 @@ class KSTestMonitor:
                 interpretation="scipy not installed — KS test skipped.",
             )
 
+        baseline_clean = pd.to_numeric(baseline_scores, errors="coerce").dropna()
+        current_clean = pd.to_numeric(current_scores, errors="coerce").dropna()
+        if baseline_clean.empty or current_clean.empty:
+            return DriftResult(
+                model_id=model_id,
+                feature="model_score",
+                metric="KS",
+                value=0.0,
+                threshold=self.KS_CRITICAL_P_VALUE,
+                drifted=False,
+                severity="LOW",
+                interpretation="KS skipped because baseline or current score series is empty.",
+            )
+
         ks_stat, p_value = scipy_stats.ks_2samp(
-            baseline_scores.dropna().values,
-            current_scores.dropna().values,
+            baseline_clean.values,
+            current_clean.values,
         )
 
         drifted  = p_value < self.KS_CRITICAL_P_VALUE

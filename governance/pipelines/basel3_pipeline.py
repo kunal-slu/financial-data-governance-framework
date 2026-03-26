@@ -284,6 +284,7 @@ class Basel3RWAPipeline:
         Write output in Delta Lake format with version control.
         Partitioned by reporting_date for efficient regulatory retrieval.
         """
+        rwa_df = self._ensure_reporting_partition_column(rwa_df)
         rwa_path     = f"{self.output_path}/rwa_detail/{self.reporting_date}"
         summary_path = f"{self.output_path}/capital_summary/{self.reporting_date}"
 
@@ -303,4 +304,15 @@ class Basel3RWAPipeline:
             .format("delta")
             .mode("overwrite")
             .save(summary_path)
+        )
+
+    @staticmethod
+    def _ensure_reporting_partition_column(df: DataFrame) -> DataFrame:
+        """Ensure the detail output has a reporting_date partition column."""
+        if "reporting_date" in df.columns:
+            return df
+        if "_fdgf_reporting_date" in df.columns:
+            return df.withColumnRenamed("_fdgf_reporting_date", "reporting_date")
+        raise ValueError(
+            "RWA output requires 'reporting_date' or '_fdgf_reporting_date' before writing."
         )

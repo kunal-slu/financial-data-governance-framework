@@ -6,18 +6,22 @@ import pytest
 pytest.importorskip("pyspark")
 
 from pyspark.sql import SparkSession
+from pyspark.errors import PySparkRuntimeError
 
 from governance.data_quality.validators import RegulatoryDataValidator
 
 
 @pytest.fixture(scope="module")
 def spark():
-    spark = (
-        SparkSession.builder
-        .master("local[1]")
-        .appName("fdgf-integration-tests")
-        .getOrCreate()
-    )
+    try:
+        spark = (
+            SparkSession.builder
+            .master("local[1]")
+            .appName("fdgf-integration-tests")
+            .getOrCreate()
+        )
+    except PySparkRuntimeError as exc:
+        pytest.skip(f"PySpark integration tests skipped: {exc}")
     yield spark
     spark.stop()
 

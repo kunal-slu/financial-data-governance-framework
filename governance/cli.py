@@ -11,9 +11,21 @@ from governance.lineage.tracker import LineageTracker
 from governance.reporting import ComplianceSummaryBuilder
 
 
-def _cmd_demo(_: argparse.Namespace) -> int:
+def _load_demo_main():
+    demo_script = Path(__file__).resolve().parents[1] / "examples" / "run_lightweight_demo.py"
+    if not demo_script.exists():
+        raise SystemExit(
+            "fdgf demo is intended to run from a source checkout; "
+            "examples/run_lightweight_demo.py was not found."
+        )
+
     from examples.run_lightweight_demo import main as run_demo
 
+    return run_demo
+
+
+def _cmd_demo(_: argparse.Namespace) -> int:
+    run_demo = _load_demo_main()
     run_demo()
     return 0
 
@@ -68,7 +80,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="fdgf")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    demo_parser = subparsers.add_parser("demo", help="Run the lightweight demo")
+    demo_parser = subparsers.add_parser(
+        "demo",
+        help="Run the lightweight demo from a source checkout",
+    )
     demo_parser.set_defaults(func=_cmd_demo)
 
     inspect_parser = subparsers.add_parser(
