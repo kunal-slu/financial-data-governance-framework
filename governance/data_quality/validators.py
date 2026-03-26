@@ -101,10 +101,6 @@ class AuditBundle:
     def critical_checks_passed(self) -> bool:
         return self.critical_failures == 0
 
-    @property
-    def submission_ready(self) -> bool:
-        return self.critical_checks_passed
-
     def to_json(self, path: str | Path) -> None:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)

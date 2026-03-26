@@ -26,11 +26,7 @@ class ComplianceSummaryBuilder:
             "passed_rules": getattr(bundle, "passed_rules", 0),
             "failed_rules": getattr(bundle, "failed_rules", 0),
             "critical_failures": getattr(bundle, "critical_failures", 0),
-            "critical_checks_passed": getattr(
-                bundle,
-                "critical_checks_passed",
-                getattr(bundle, "submission_ready", False),
-            ),
+            "critical_checks_passed": getattr(bundle, "critical_checks_passed", False),
             "critical_rule_ids": critical_rules,
         }
 

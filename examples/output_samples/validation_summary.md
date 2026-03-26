@@ -2,10 +2,10 @@
 
 - **bundle_id**: BUNDLE-DEMO-001
 - **reporting_date**: 2026-03-31
-- **regulatory_scope**: Basel III
-- **total_rules**: 4
-- **passed_rules**: 3
-- **failed_rules**: 1
-- **critical_failures**: 1
-- **critical_checks_passed**: False
-- **critical_rule_ids**: ['BAS-NULL-001']
+- **regulatory_scope**: Basel III RWA
+- **total_rules**: 25
+- **passed_rules**: 25
+- **failed_rules**: 0
+- **critical_failures**: 0
+- **critical_checks_passed**: True
+- **critical_rule_ids**: []

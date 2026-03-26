@@ -24,7 +24,13 @@ python3 examples/run_lightweight_demo.py
 python3 examples/build_artifact_bundle.py
 ```
 
-## 5. Try the CLI
+## 5. Refresh the curated output samples
+
+```bash
+python3 examples/generate_output_samples.py
+```
+
+## 6. Try the CLI
 
 Inspect a contract:
 

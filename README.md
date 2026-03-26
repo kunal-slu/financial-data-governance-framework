@@ -102,7 +102,9 @@ Then inspect the sample artifacts and docs:
 - `examples/run_lightweight_demo.py`
   A lightweight local demonstration that does not require a full Spark pipeline.
 - `examples/build_artifact_bundle.py`
-  A small example showing how generated artifacts can be summarized for review.
+  A reproducible example that writes lineage, validation, and model-monitoring review artifacts.
+- `examples/generate_output_samples.py`
+  A helper that refreshes the curated sample artifacts under `examples/output_samples/`.
 - `examples/output_samples/`
   Stable sample artifacts showing the kinds of outputs the framework produces.
 - `schemas/`
@@ -193,6 +195,18 @@ make package-check
 ```
 
 The demo does not require Spark. Spark-based components require a compatible local Spark and PySpark runtime.
+
+Build a fuller artifact bundle:
+
+```bash
+python3 examples/build_artifact_bundle.py
+```
+
+Refresh the curated sample artifacts:
+
+```bash
+python3 examples/generate_output_samples.py
+```
 
 Generate a lineage bundle from the shipped example config:
 

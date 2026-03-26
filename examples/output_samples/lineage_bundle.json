@@ -1,10 +1,10 @@
 {
   "bundle_type": "LINEAGE_AUDIT",
-  "run_id": "c078082a-bab8-4841-bad4-41879214bca4",
-  "job_name": "fdgf_lightweight_demo",
+  "run_id": "84836c0d-0c84-4a8a-b8a7-459eb57774ba",
+  "job_name": "fdgf_artifact_bundle_demo",
   "job_namespace": "fdgf.examples",
-  "regulatory_scope": "Illustrative financial data workflow",
-  "generated_at": "2026-03-25T03:47:57.720999+00:00",
+  "regulatory_scope": "Illustrative regulatory control workflow",
+  "generated_at": "2026-03-26T04:29:30.184416+00:00",
   "framework_version": "1.0.0",
   "total_events": 2,
   "inputs": [
@@ -21,38 +21,38 @@
   "outputs": [
     {
       "name": "daily_rollup",
-      "namespace": "local://demo_output",
+      "namespace": "local://artifact_bundle",
       "source_system": "FDGF_DEMO",
       "schema_version": "1.0",
       "record_count": 1,
       "byte_size": 0,
-      "dataset_fingerprint": "9470e40dd9184c5f"
+      "dataset_fingerprint": "f845e7a50cf672a3"
     }
   ],
   "transformations": [
     {
-      "transform_id": "1A376873",
-      "transform_name": "exposure_rollup",
+      "transform_id": "D248D289",
+      "transform_name": "demo_rollup",
       "transform_type": "AGGREGATE",
-      "sql_or_code": "sum(exposure_amount) by as_of_date",
+      "sql_or_code": "sum(exposure_amount) by reporting_date",
       "spark_plan": ""
     }
   ],
   "events": [
     {
       "eventType": "START",
-      "eventTime": "2026-03-25T03:47:57.720587+00:00",
+      "eventTime": "2026-03-26T04:29:30.183978+00:00",
       "run": {
-        "runId": "c078082a-bab8-4841-bad4-41879214bca4",
+        "runId": "84836c0d-0c84-4a8a-b8a7-459eb57774ba",
         "facets": {
           "regulatoryScope": {
-            "scope": "Illustrative financial data workflow"
+            "scope": "Illustrative regulatory control workflow"
           }
         }
       },
       "job": {
         "namespace": "fdgf.examples",
-        "name": "fdgf_lightweight_demo",
+        "name": "fdgf_artifact_bundle_demo",
         "facets": {
           "producer": "fdgf/lineage-tracker/1.0.0"
         }
@@ -65,18 +65,18 @@
     },
     {
       "eventType": "COMPLETE",
-      "eventTime": "2026-03-25T03:47:57.720856+00:00",
+      "eventTime": "2026-03-26T04:29:30.184274+00:00",
       "run": {
-        "runId": "c078082a-bab8-4841-bad4-41879214bca4",
+        "runId": "84836c0d-0c84-4a8a-b8a7-459eb57774ba",
         "facets": {
           "regulatoryScope": {
-            "scope": "Illustrative financial data workflow"
+            "scope": "Illustrative regulatory control workflow"
           }
         }
       },
       "job": {
         "namespace": "fdgf.examples",
-        "name": "fdgf_lightweight_demo",
+        "name": "fdgf_artifact_bundle_demo",
         "facets": {
           "producer": "fdgf/lineage-tracker/1.0.0"
         }
@@ -95,20 +95,20 @@
       "outputs": [
         {
           "name": "daily_rollup",
-          "namespace": "local://demo_output",
+          "namespace": "local://artifact_bundle",
           "source_system": "FDGF_DEMO",
           "schema_version": "1.0",
           "record_count": 1,
           "byte_size": 0,
-          "dataset_fingerprint": "9470e40dd9184c5f"
+          "dataset_fingerprint": "f845e7a50cf672a3"
         }
       ],
       "transformations": [
         {
-          "transform_id": "1A376873",
-          "transform_name": "exposure_rollup",
+          "transform_id": "D248D289",
+          "transform_name": "demo_rollup",
           "transform_type": "AGGREGATE",
-          "sql_or_code": "sum(exposure_amount) by as_of_date",
+          "sql_or_code": "sum(exposure_amount) by reporting_date",
           "spark_plan": ""
         }
       ],
@@ -116,5 +116,5 @@
       "schemaURL": "https://openlineage.io/spec/1-0-5/OpenLineage.json"
     }
   ],
-  "lineage_hash": "7b8594f15235f307be70077cfe3306e591deed768ad2d3689d41565ee1545298"
+  "lineage_hash": "9fb8fd4dd0338f913633266c0d85f1c2252f4565c23c09699327d05172bd6b9e"
 }

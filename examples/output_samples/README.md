@@ -12,3 +12,9 @@ Included samples:
 - `audit_packet.md`
 
 These are illustrative samples based on synthetic data and example workflows.
+
+Refresh them from the current implementation with:
+
+```bash
+python3 examples/generate_output_samples.py
+```
