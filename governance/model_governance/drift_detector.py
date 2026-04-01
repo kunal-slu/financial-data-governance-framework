@@ -1,7 +1,7 @@
 """
 governance/model_governance/drift_detector.py
 
-Illustrative model-governance monitoring utilities aligned with common review workflows.
+Model-governance monitoring utilities aligned with common review workflows.
 Detects population shift, score-distribution drift, and fairness issues
 in model-driven financial data workflows.
 

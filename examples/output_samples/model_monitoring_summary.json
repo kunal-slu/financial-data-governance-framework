@@ -1,5 +1,5 @@
 {
-  "model_id": "DEMO_MODEL",
+  "model_id": "REFERENCE_MODEL",
   "model_version": "1.0.0",
   "framework_version": "0.1.4",
   "overall_status": "REQUIRES_REVIEW",

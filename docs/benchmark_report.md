@@ -34,4 +34,8 @@ The main value is not just error detection. The stronger improvement is that the
 
 This comparison is qualitative. It reflects the kinds of differences the repository is designed to illustrate with synthetic examples and generated artifacts, not institution-level benchmark measurements.
 
+## Illustrative Scenario
+
+This scenario is illustrative and uses synthetic assumptions rather than measured institution-specific results. In an illustrative monthly workflow for a smaller financial institution, automated evidence generation could reduce manual evidence-assembly time from several hours to minutes.
+
 See the sample artifacts under [`examples/output_samples/`](../examples/output_samples/).

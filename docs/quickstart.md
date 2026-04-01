@@ -18,6 +18,17 @@ python3 -m pytest -q
 python3 examples/run_lightweight_demo.py
 ```
 
+### What to expect
+
+After running the lightweight demo, you should see generated example outputs in a local ignored output directory. For a fuller set of review artifacts, run `python3 examples/build_artifact_bundle.py` and then inspect the files written under the generated artifact directory as well as the curated examples under `examples/output_samples/`.
+
+Useful files to inspect include:
+
+- validation summary JSON
+- lineage bundle JSON
+- model monitoring summary JSON
+- reviewer-friendly Markdown summaries
+
 ## 4. Build an artifact bundle
 
 ```bash

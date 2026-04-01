@@ -2,18 +2,21 @@
 
 ## Near Term
 
-- expand reusable data-contract coverage
-- add more output artifact examples
-- improve CLI ergonomics for local evaluation
-- add more integration-style tests
+- expand reusable contract coverage across additional regulated financial-data workflows
+- improve evaluation documentation, sample-artifact guidance, and extension patterns
+- strengthen tests around artifact consistency, schema validation, and reviewer-facing outputs
+- refine institution profiles, control sets, and workflow profiles for broader reuse
 
-## Mid Term
+## Medium Term
 
-- add additional workflow examples beyond Basel III
-- add configurable output schemas for summaries
-- add optional packaging for artifact generation utilities
+- incorporate external technical feedback into contracts, profiles, and documentation
+- add additional institution-profile and workflow examples beyond the current banking-centered set
+- improve packaging and release hygiene for easier local evaluation and adaptation
+- explore standards-adjacent dissemination through relevant open technical communities
 
-## Long Term
+## Exploratory
 
-- broaden reference coverage across multiple regulated-data workflows
-- improve documentation around control reuse and extension patterns
+- support pilot-style evaluation in regulated financial-data environments
+- broaden reference coverage across additional governance and reporting contexts
+- continue maintaining the framework as a vendor-neutral public reference implementation
+- expand reusable mappings and artifacts as the surrounding regulatory-data landscape evolves

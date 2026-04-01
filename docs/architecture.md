@@ -56,4 +56,4 @@ Typical reuse steps:
 
 ## Current Boundary
 
-The repository currently demonstrates framework structure, local testing, and example assets. It does not yet include deployment automation, external system adapters, or production operating controls.
+The repository provides governance primitives, configuration templates, local evaluation paths, and runnable examples. Deployment automation, external system adapters, and production infrastructure are institution-specific concerns outside the scope of a vendor-neutral reference implementation.

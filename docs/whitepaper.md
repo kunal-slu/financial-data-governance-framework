@@ -7,6 +7,7 @@
 This white paper presents FDGF as a public, vendor-neutral reference architecture for governance-as-code in regulated financial data workflows. FDGF is intended as a reusable technical starting point for practitioners who need stronger data-quality controls, lineage visibility, audit-oriented artifacts, and model-governance support in reporting and risk-data processes.
 
 All sample artifacts in the repository use synthetic data. FDGF does not claim regulator endorsement, broad institutional adoption, or compliance certification.
+It is intended as a public, vendor-neutral reference implementation for adaptation by U.S. financial institutions.
 
 ## Executive Summary
 

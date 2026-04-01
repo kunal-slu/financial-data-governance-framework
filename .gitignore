@@ -15,6 +15,7 @@ __MACOSX/
 
 # Generated outputs
 demo_output/
+audit_output/
 dist/
 build/
 *.egg-info/

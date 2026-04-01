@@ -9,4 +9,4 @@ Instead, provide:
 - reproduction steps
 - expected impact
 
-This repository is a reference implementation and should not be assumed to be hardened for production deployment.
+This repository is a public reference implementation. Security issues affecting the framework design or generated artifacts should be reported directly.

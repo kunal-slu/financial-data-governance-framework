@@ -31,5 +31,5 @@ class ExplainabilityReport:
 def default_explainability_report() -> ExplainabilityReport:
     return ExplainabilityReport(
         status=ExplainabilityStatus.NOT_CONFIGURED,
-        note="Explainability reporting is not configured in the current demo implementation.",
+        note="Explainability reporting is not configured in the current reference implementation.",
     )

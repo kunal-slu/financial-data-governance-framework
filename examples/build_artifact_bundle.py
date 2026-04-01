@@ -17,20 +17,20 @@ from governance.reporting import ComplianceSummaryBuilder
 def _write_lineage_bundle(out_dir: Path) -> Path:
     lineage_work_dir = out_dir / "_lineage_run"
     tracker = LineageTracker(
-        job_name="fdgf_artifact_bundle_demo",
+        job_name="fdgf_artifact_bundle_reference",
         job_namespace="fdgf.examples",
-        regulatory_scope="Illustrative regulatory control workflow",
+        regulatory_scope="Regulatory control reference workflow",
         output_dir=lineage_work_dir,
     )
     sample_rows = len(pd.read_csv(ROOT / "sample_data" / "basel3_sample.csv"))
     tracker.start_run()
-    tracker.record_input("basel3_sample.csv", "local://sample_data", "DEMO_SOURCE", record_count=sample_rows)
+    tracker.record_input("basel3_sample.csv", "local://sample_data", "REFERENCE_SOURCE", record_count=sample_rows)
     tracker.record_transformation(
-        "demo_rollup",
+        "reference_rollup",
         "AGGREGATE",
         sql_or_code="sum(exposure_amount) by reporting_date",
     )
-    tracker.record_output("daily_rollup", "local://artifact_bundle", "FDGF_DEMO", record_count=1)
+    tracker.record_output("daily_rollup", "local://artifact_bundle", "FDGF_REFERENCE", record_count=1)
     lineage_path = Path(tracker.complete_run())
     final_path = out_dir / "lineage_bundle.json"
     shutil.copyfile(lineage_path, final_path)
@@ -74,7 +74,7 @@ def _write_model_summary(out_dir: Path, summary: ComplianceSummaryBuilder) -> Pa
         }
     )
     report = monitor.run_full_assessment(
-        model_id="DEMO_MODEL",
+        model_id="REFERENCE_MODEL",
         model_version="1.0.0",
         baseline_data=baseline_data,
         current_data=current_data,
@@ -98,7 +98,7 @@ def _write_artifact_packet(out_dir: Path, summary: ComplianceSummaryBuilder) -> 
         "validation_summary": "validation_summary.json",
         "model_monitoring_summary": "model_monitoring_summary.json",
         "project_positioning": (
-            "illustrative governance-as-code reference implementation for "
+            "open, vendor-neutral governance-as-code reference implementation for "
             "regulated financial data workflows"
         ),
     }

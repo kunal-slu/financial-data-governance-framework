@@ -17,3 +17,7 @@ Represent validation, lineage, and summary generation as executable artifacts in
 - easier reuse across workflows
 - clearer output artifacts
 - better reproducibility than manual documentation alone
+
+## Alternatives Considered
+
+Considered relying on manual runbooks and spreadsheet-based control tracking. Rejected because they do not provide executable control logic or consistent generated evidence.

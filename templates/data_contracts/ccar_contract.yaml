@@ -1,4 +1,4 @@
-dataset: ccar_y14_demo
+dataset: ccar_y14_reference
 version: 1.0
 rules:
   - id: CCAR_001

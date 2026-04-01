@@ -21,4 +21,4 @@ The machine-readable mapping lives in [`templates/control_mappings/regulatory_co
 - validation controls support data quality, reconciliation, and reporting control checks
 - lineage controls support reconstruction of how reportable data was produced
 - model-governance checks support ongoing monitoring of model-driven workflows
-- reporting summaries make raw control artifacts usable by reviewers without reading all source code
+- reporting summaries make raw control artifacts usable by reviewers without requiring access to source code

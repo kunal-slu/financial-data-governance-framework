@@ -5,6 +5,8 @@ type: software
 authors:
   - family-names: "Singh"
     given-names: "Kunal Kumar"
+    email: "kunalksng@gmail.com"
+    affiliation: "Independent"
 repository-code: "https://github.com/kunal-slu/financial-data-governance-framework"
 url: "https://github.com/kunal-slu/financial-data-governance-framework"
 license: "Apache-2.0"

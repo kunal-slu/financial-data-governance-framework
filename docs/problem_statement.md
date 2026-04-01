@@ -14,7 +14,7 @@ Common failure modes include:
 
 FDGF addresses this technical problem by representing controls in code and configuration, then producing traceable, reviewable artifacts as a by-product of execution.
 
-The intended improvement is operational rather than rhetorical:
+The intended improvement is operational:
 
 - higher validation coverage
 - more consistent failed-record detection
