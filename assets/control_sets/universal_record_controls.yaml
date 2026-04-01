@@ -1,5 +1,5 @@
 dataset: universal_financial_records
-version: 1.0
+control_set_version: "1.0.0"
 rules:
   - id: UCR_001
     type: nullability

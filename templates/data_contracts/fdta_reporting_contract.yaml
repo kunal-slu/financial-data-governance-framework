@@ -1,5 +1,5 @@
 contract_name: fdta_reporting_reference_contract
-version: 1.0
+contract_version: "1.0.0"
 regulatory_scope: FDTA
 rules:
   - id: FDTA-NULL-001

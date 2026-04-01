@@ -1,5 +1,5 @@
 dataset: generic_financial_records
-version: 1.0
+contract_version: "1.0.0"
 rules:
   - id: GEN_001
     type: nullability

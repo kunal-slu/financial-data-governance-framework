@@ -8,6 +8,7 @@ FDGF is a governance-as-code reference implementation for regulated financial da
 
 ## At A Glance
 
+- Current public release: 0.1.4
 - Scope: reference implementation for governance-as-code in regulated financial data workflows
 - Core themes: data quality, lineage, auditability, and model-governance monitoring
 - Primary examples: Basel III-, CCAR-, BCBS 239-, SR 11-7-, and FDTA-aligned control patterns

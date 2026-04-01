@@ -1,5 +1,5 @@
 dataset: scenario_projection_records
-version: 1.0
+control_set_version: "1.0.0"
 rules:
   - id: SCP_001
     type: nullability

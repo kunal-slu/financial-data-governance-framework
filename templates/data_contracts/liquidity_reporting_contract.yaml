@@ -1,5 +1,5 @@
 contract_name: liquidity_reporting_reference_contract
-version: 1.0
+contract_version: "1.0.0"
 regulatory_scope: Liquidity Reporting
 rules:
   - id: LIQ-NULL-001

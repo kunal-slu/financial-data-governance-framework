@@ -1,5 +1,5 @@
 dataset: ccar_y14_reference
-version: 1.0
+contract_version: "1.0.0"
 rules:
   - id: CCAR_001
     type: nullability

@@ -1,5 +1,5 @@
 dataset: capital_exposure_records
-version: 1.0
+control_set_version: "1.0.0"
 rules:
   - id: CAP_001
     type: nullability

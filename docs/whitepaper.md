@@ -4,6 +4,8 @@
 
 ### Public Technical Overview
 
+Current public repository release: 0.1.4
+
 This white paper presents FDGF as a public, vendor-neutral reference architecture for governance-as-code in regulated financial data workflows. FDGF is intended as a reusable technical starting point for practitioners who need stronger data-quality controls, lineage visibility, audit-oriented artifacts, and model-governance support in reporting and risk-data processes.
 
 All sample artifacts in the repository use synthetic data. FDGF does not claim regulator endorsement, broad institutional adoption, or compliance certification.
@@ -13,7 +15,7 @@ It is intended as a public, vendor-neutral reference implementation for adaptati
 
 Financial institutions continue to face recurring operational problems in regulatory and risk-governance data workflows. Common failure points include fragmented source systems, manual reconciliations, undocumented transformations, inconsistent validation logic, and incomplete review evidence. These weaknesses can slow internal review, complicate supervisory response, and increase the operational burden of producing traceable reporting data.
 
-FDGF addresses this problem by encoding validation rules, lineage capture, summary generation, and lightweight model-monitoring checks directly in code and configuration. The repository combines:
+FDGF addresses this problem by encoding validation rules, lineage capture, summary generation, and illustrative model-monitoring checks directly in code and configuration. The repository combines:
 
 - contract-driven data validation
 - OpenLineage-style lineage capture with SHA-256 artifact fingerprints
@@ -172,12 +174,14 @@ This is one of the main features that makes FDGF adaptable across multiple insti
 
 ## Sample Output Artifacts
 
-The repository ships synthetic examples of:
+The repository ships synthetic examples of six output artifacts:
 
-- validation summaries
-- lineage bundles
-- model-monitoring summaries
-- Markdown review summaries
+- validation summary JSON
+- validation summary Markdown
+- lineage bundle JSON
+- model-monitoring summary JSON
+- audit packet Markdown
+- compliance summary Markdown
 
 In the current sample set, the validation summary exposes `critical_checks_passed` as an illustrative readiness indicator for downstream review. The lineage sample uses the current `lineage_fingerprint` field name. These artifacts are intended to show what the framework produces, not to claim operational deployment.
 
@@ -238,7 +242,7 @@ FDGF does not currently demonstrate:
 
 ## Conclusion
 
-FDGF targets a recurring gap in regulated financial data workflows: the need for a public, technical reference implementation that combines rule-driven validation, lineage capture, review-oriented artifacts, and lightweight model-governance support in one repository.
+FDGF targets a recurring gap in regulated financial data workflows: the need for a public, technical reference implementation that combines rule-driven validation, lineage capture, review-oriented artifacts, and illustrative model-governance support in one repository.
 
 The framework is designed for adaptation by U.S. financial institutions and other regulated-data teams that need stronger governance primitives in their reporting and review workflows. Its most concrete examples are banking-oriented because those workflows are well defined and testable, but the underlying patterns are broader than any one example contract.
 

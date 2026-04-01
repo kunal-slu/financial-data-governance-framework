@@ -20,6 +20,9 @@
     "job_name": { "type": "string" },
     "job_namespace": { "type": "string" },
     "regulatory_scope": { "type": "string" },
+    "framework_version": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "total_events": { "type": "integer", "minimum": 0 },
     "inputs": {
       "type": "array",
       "items": {

@@ -15,10 +15,10 @@
 #
 # ============================================================
 
-policy_version: "1.0.0"
+policy_template_version: "1.0.0"
 effective_date: "2026-01-01"
 policy_owner: "Model Risk Management"
-regulatory_basis: "Federal Reserve SR 11-7 — Guidance on Model Risk Management"
+regulatory_basis: "Illustrative — aligned with Federal Reserve SR 11-7 guidance on model risk management"
 
 # ----------------------------------------------------------
 # Model Inventory Requirements
