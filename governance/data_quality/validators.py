@@ -2,7 +2,7 @@
 governance/data_quality/validators.py
 
 Core data quality validation engine for U.S. regulatory reporting.
-Aligned with BCBS 239, SR 11-7, and Financial Data Transparency Act requirements.
+Aligned with common control themes in BCBS 239, SR 11-7, and Financial Data Transparency Act workflows.
 
 Author: Kunal Kumar Singh
 License: Apache 2.0

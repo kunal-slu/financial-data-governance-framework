@@ -36,6 +36,6 @@ This comparison is qualitative. It reflects the kinds of differences the reposit
 
 ## Illustrative Scenario
 
-This scenario is illustrative and uses synthetic assumptions rather than measured institution-specific results. In an illustrative monthly workflow for a smaller financial institution, automated evidence generation could reduce manual evidence-assembly time from several hours to minutes.
+This scenario is illustrative and uses synthetic assumptions rather than measured institution-specific results. In an illustrative monthly workflow for a smaller financial institution, the framework-based approach generates artifacts immediately after execution rather than requiring a separate manual assembly step.
 
 See the sample artifacts under [`examples/output_samples/`](../examples/output_samples/).

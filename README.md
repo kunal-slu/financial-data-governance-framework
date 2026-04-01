@@ -39,6 +39,8 @@ Then inspect the sample artifacts and docs:
 - [Control Mapping](docs/control_mapping.md)
 - [Problem Statement](docs/problem_statement.md)
 - [White Paper](docs/whitepaper.md)
+- [Adoption Guide](docs/adoption_guide.md)
+- [Scope and Limitations](docs/project_scope/scope_and_limitations.md)
 - [Output Samples](examples/output_samples/README.md)
 
 ## What The Repository Includes

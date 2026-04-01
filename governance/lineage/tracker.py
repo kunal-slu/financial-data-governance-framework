@@ -6,8 +6,8 @@ OpenLineage-style. Aligned with common lineage and traceability control themes
 used in BCBS 239-style and machine-readable reporting workflows.
 
 Every dataset transformation, join, aggregation, and output handoff is recorded
-with generated fingerprints and run artifacts, replacing manual documentation
-with continuous evidence generation.
+with generated fingerprints and run artifacts, as an alternative to manual
+documentation steps in regulated data workflows.
 
 Author: Kunal Kumar Singh
 License: Apache 2.0

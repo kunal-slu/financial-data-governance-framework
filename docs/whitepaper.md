@@ -96,12 +96,14 @@ The repository is organized around four layers:
 The validator in `governance/data_quality/validators.py` loads machine-readable contracts and evaluates checks such as:
 
 - nullability
-- ranges
+- range
 - uniqueness
-- referential integrity
-- cross-dataset reconciliation
-- schema matching
-- row-condition checks
+- referential_integrity
+- cross_dataset_reconciliation
+- regulatory_format
+- timeliness
+- row_condition
+- schema_match
 
 Its primary output is an audit bundle that includes rule counts, critical failures, and the `critical_checks_passed` status used throughout the current codebase.
 

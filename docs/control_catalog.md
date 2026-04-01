@@ -18,6 +18,10 @@ This catalog summarizes what the current repository actually implements.
   Validates formatting patterns such as codes and dates.
 - `timeliness`
   Checks data recency against configured lag thresholds.
+- `row_condition`
+  Evaluates a configured row-level boolean condition against the dataset.
+- `schema_match`
+  Validates that required columns and expected types match the configured schema contract.
 
 These controls are executed by [`governance/data_quality/validators.py`](../governance/data_quality/validators.py).
 

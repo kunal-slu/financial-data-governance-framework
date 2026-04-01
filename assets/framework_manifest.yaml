@@ -1,5 +1,5 @@
 framework_name: FDGF
-framework_version: 1.0
+framework_version: 0.1.4
 description: >
   Financial data governance framework for reusable control implementation
   across regulated financial institutions.
