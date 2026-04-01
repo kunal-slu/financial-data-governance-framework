@@ -1,5 +1,6 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
+![CI](https://github.com/kunal-slu/financial-data-governance-framework/actions/workflows/ci.yml/badge.svg)
 
 # Financial Data Governance Framework (FDGF)
 

@@ -152,6 +152,7 @@ FDGF maps several components to BCBS 239-style themes, including:
 ### FDTA
 
 FDGF’s use of machine-readable rule contracts, common field definitions, and structured output artifacts is consistent with the general move toward machine-readable financial data standards.
+The implementing rulemaking is currently underway, creating a compliance window during which institutions need practical, open-source implementation paths.
 
 ### Basel III and CCAR-style workflows
 

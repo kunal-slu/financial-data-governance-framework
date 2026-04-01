@@ -1,5 +1,5 @@
 framework: FDGF
-version: 1.0
+version: 0.1.4
 control_mappings:
   - control_id: FDGF-DQ-001
     component: governance.data_quality.validators

@@ -12,7 +12,7 @@
 - incorporate external technical feedback into contracts, profiles, and documentation
 - add additional institution-profile and workflow examples beyond the current banking-centered set
 - improve packaging and release hygiene for easier local evaluation and adaptation
-- explore standards-adjacent dissemination through relevant open technical communities
+- explore standards-adjacent dissemination through relevant open technical communities such as FINOS and FDX
 
 ## Exploratory
 

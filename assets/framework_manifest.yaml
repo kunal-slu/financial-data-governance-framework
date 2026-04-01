@@ -29,6 +29,13 @@ operating_profiles:
   - assets/operating_profiles/insurer.yaml
   - assets/operating_profiles/digital_finance_platform.yaml
 
+institution_profiles:
+  - templates/institution_profiles/bank_profile.yaml
+  - templates/institution_profiles/credit_union_profile.yaml
+  - templates/institution_profiles/broker_dealer_profile.yaml
+  - templates/institution_profiles/insurer_profile.yaml
+  - templates/institution_profiles/payment_fintech_profile.yaml
+
 use_case_profiles:
   - assets/use_case_profiles/regulatory_reporting_backbone.yaml
   - assets/use_case_profiles/model_governance_monitoring.yaml

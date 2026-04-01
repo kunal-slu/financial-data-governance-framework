@@ -10,3 +10,5 @@ Instead, provide:
 - expected impact
 
 This repository is a public reference implementation. Security issues affecting the framework design or generated artifacts should be reported directly.
+
+To report a security issue, contact the author directly at kunalksng@gmail.com or open a private GitHub security advisory at https://github.com/kunal-slu/financial-data-governance-framework/security/advisories/new
