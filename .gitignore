@@ -9,10 +9,6 @@ venv/
 .DS_Store
 __MACOSX/
 
-# Local tooling
-.codex_tmp/
-.qodo/
-
 # Generated outputs
 demo_output/
 audit_output/
